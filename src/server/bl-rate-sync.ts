@@ -71,7 +71,7 @@ async function logSync(db: LoggableDb, connectionId: number, action: string, tar
 async function withConnectionLock<T>(db: LockableRateSyncDb, connectionId: number, task: (tx: RateRuleDb) => Promise<T>) {
   const lockKey = (BigInt(connectionId) << 32n) | 0x424c526en;
   return db.$transaction(async (tx) => {
-    await tx.$queryRaw`SELECT pg_advisory_xact_lock(${lockKey})`;
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(${lockKey})`;
     return task(tx);
   }, { maxWait: 30_000, timeout: 180_000 });
 }
