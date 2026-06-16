@@ -561,7 +561,7 @@ const AccountTableRow = memo(function AccountTableRow({
       <TableCell className="font-mono">{formatRate(row.rate_multiplier ?? 1)}</TableCell>
       <TableCell className="max-w-[220px] truncate text-sm">{ruleSummary(rule)}</TableCell>
       <TableCell>{renderBalance()}</TableCell>
-      <TableCell>{schedulable ? <Badge variant="default" className="bg-green-500 text-white">已启用</Badge> : <Badge variant="secondary">已禁用</Badge>}</TableCell>
+      <TableCell>{schedulable ? <Badge variant="success">已启用</Badge> : <Badge variant="secondary">已禁用</Badge>}</TableCell>
       <TableCell className="max-w-[150px] truncate text-sm text-destructive">{row.error ?? row.last_error ?? row.error_message ?? "-"}</TableCell>
       <TableCell>
         <div className="flex gap-1">

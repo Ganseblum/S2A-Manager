@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Code2 } from "lucide-react";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -24,9 +25,12 @@ export default function LoginPage() {
   });
 
   return (
-    <div className="auth-screen flex min-h-screen items-center justify-center px-4">
-      <Card className="w-full max-w-sm border-white/70 bg-white/90 shadow-2xl shadow-black/10 backdrop-blur">
+    <div className="auth-screen flex min-h-screen items-center justify-center px-4 py-10">
+      <Card className="w-full max-w-sm">
         <CardHeader>
+          <div className="mb-3 flex size-10 items-center justify-center rounded-md border border-primary/25 bg-primary/12 text-primary">
+            <Code2 className="size-5" />
+          </div>
           <CardTitle className="text-2xl">S2A Manager</CardTitle>
           <CardDescription>登录后管理 Sub2API 连接、倍率和同步任务</CardDescription>
         </CardHeader>

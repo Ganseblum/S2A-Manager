@@ -4,76 +4,91 @@
 
 @layer base {
   :root {
-    --background: 210 40% 98%;
-    --foreground: 222 47% 11%;
-    --card: 0 0% 100%;
-    --card-foreground: 222 47% 11%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 222 47% 11%;
-    --primary: 199 89% 38%;
-    --primary-foreground: 0 0% 100%;
-    --secondary: 210 30% 93%;
-    --secondary-foreground: 222 47% 16%;
-    --muted: 210 32% 94%;
-    --muted-foreground: 215 16% 45%;
-    --accent: 43 96% 56%;
-    --accent-foreground: 222 47% 11%;
-    --destructive: 0 72% 51%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 214 32% 88%;
-    --input: 214 32% 88%;
-    --ring: 199 89% 38%;
-    --radius: 0.5rem;
+    --background: 150 8% 5%;
+    --foreground: 42 28% 93%;
+    --card: 150 7% 8%;
+    --card-foreground: 42 28% 93%;
+    --popover: 150 7% 8%;
+    --popover-foreground: 42 28% 93%;
+    --primary: 146 54% 64%;
+    --primary-foreground: 150 11% 6%;
+    --secondary: 150 5% 14%;
+    --secondary-foreground: 42 24% 88%;
+    --muted: 150 5% 13%;
+    --muted-foreground: 45 7% 63%;
+    --accent: 30 40% 88%;
+    --accent-foreground: 150 11% 7%;
+    --destructive: 2 78% 66%;
+    --destructive-foreground: 42 28% 94%;
+    --border: 150 5% 19%;
+    --input: 150 5% 21%;
+    --ring: 146 54% 64%;
+    --radius: 0.375rem;
   }
 
   .dark {
-    --background: 0 0% 3.9%;
-    --foreground: 0 0% 98%;
-    --card: 0 0% 3.9%;
-    --card-foreground: 0 0% 98%;
-    --popover: 0 0% 3.9%;
-    --popover-foreground: 0 0% 98%;
-    --primary: 0 0% 98%;
-    --primary-foreground: 0 0% 9%;
-    --secondary: 0 0% 14.9%;
-    --secondary-foreground: 0 0% 98%;
-    --muted: 0 0% 14.9%;
-    --muted-foreground: 0 0% 63.9%;
-    --accent: 0 0% 14.9%;
-    --accent-foreground: 0 0% 98%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 0 0% 14.9%;
-    --input: 0 0% 14.9%;
-    --ring: 0 0% 83.1%;
+    --background: 150 8% 5%;
+    --foreground: 42 28% 93%;
+    --card: 150 7% 8%;
+    --card-foreground: 42 28% 93%;
+    --popover: 150 7% 8%;
+    --popover-foreground: 42 28% 93%;
+    --primary: 146 54% 64%;
+    --primary-foreground: 150 11% 6%;
+    --secondary: 150 5% 14%;
+    --secondary-foreground: 42 24% 88%;
+    --muted: 150 5% 13%;
+    --muted-foreground: 45 7% 63%;
+    --accent: 30 40% 88%;
+    --accent-foreground: 150 11% 7%;
+    --destructive: 2 78% 66%;
+    --destructive-foreground: 42 28% 94%;
+    --border: 150 5% 19%;
+    --input: 150 5% 21%;
+    --ring: 146 54% 64%;
   }
 }
 
 @layer base {
   * { @apply border-border; }
-  html { @apply bg-background text-foreground; }
+  html {
+    @apply bg-background text-foreground;
+    color-scheme: dark;
+  }
   body {
     @apply min-h-screen bg-background text-foreground antialiased;
     background:
-      linear-gradient(135deg, hsl(199 89% 96%) 0%, transparent 34%),
-      linear-gradient(225deg, hsl(43 96% 93%) 0%, transparent 28%),
+      radial-gradient(circle at 22% 8%, hsl(144 46% 19% / 0.34), transparent 34rem),
+      radial-gradient(circle at 88% 16%, hsl(34 34% 45% / 0.14), transparent 30rem),
+      linear-gradient(180deg, hsl(150 8% 7%) 0%, hsl(150 8% 5%) 48%, hsl(150 10% 4%) 100%),
       hsl(var(--background));
+    letter-spacing: 0;
   }
-  ::selection { @apply bg-primary/20 text-foreground; }
+  ::selection { @apply bg-primary/30 text-foreground; }
 }
 
 @layer components {
   .app-shell {
     background:
-      linear-gradient(135deg, hsl(199 89% 96%) 0%, transparent 28%),
-      linear-gradient(225deg, hsl(43 96% 92%) 0%, transparent 24%),
+      radial-gradient(circle at 20% -12%, hsl(145 54% 18% / 0.55), transparent 32rem),
+      radial-gradient(circle at 100% 0%, hsl(33 38% 39% / 0.16), transparent 30rem),
+      linear-gradient(180deg, hsl(150 8% 7%) 0%, hsl(150 8% 5%) 100%),
       hsl(var(--background));
   }
 
   .auth-screen {
     background:
-      linear-gradient(135deg, hsl(199 89% 92%) 0%, transparent 40%),
-      linear-gradient(225deg, hsl(43 96% 88%) 0%, transparent 35%),
+      radial-gradient(circle at 16% 12%, hsl(145 53% 21% / 0.56), transparent 34rem),
+      radial-gradient(circle at 78% 24%, hsl(30 38% 50% / 0.14), transparent 28rem),
+      linear-gradient(180deg, hsl(150 8% 7%) 0%, hsl(150 9% 4%) 100%),
       hsl(var(--background));
+  }
+
+  .codex-panel {
+    @apply border border-border/80 bg-card/80 shadow-[0_1px_0_hsl(0_0%_100%/0.04)_inset,0_24px_80px_hsl(0_0%_0%/0.28)] backdrop-blur-xl;
+  }
+
+  .codex-subtle-panel {
+    @apply border border-border/70 bg-secondary/45 shadow-[0_1px_0_hsl(0_0%_100%/0.035)_inset];
   }
 }

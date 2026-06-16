@@ -55,8 +55,8 @@ function formatMilliseconds(value: number | null | undefined) {
 }
 
 function statusBadge(tone: StatusTone, label: string) {
-  if (tone === "ok") return <Badge variant="success" className="text-emerald-700">{label}</Badge>;
-  if (tone === "warn") return <Badge variant="warning" className="text-amber-700">{label}</Badge>;
+  if (tone === "ok") return <Badge variant="success">{label}</Badge>;
+  if (tone === "warn") return <Badge variant="warning">{label}</Badge>;
   return <Badge variant="destructive">{label}</Badge>;
 }
 
@@ -74,9 +74,9 @@ function StatusCard({
   tone: StatusTone;
 }) {
   const toneClass = tone === "ok"
-    ? "bg-emerald-500/10 text-emerald-700"
+    ? "bg-emerald-400/10 text-emerald-300"
     : tone === "warn"
-      ? "bg-amber-500/10 text-amber-700"
+      ? "bg-amber-400/10 text-amber-300"
       : "bg-destructive/10 text-destructive";
 
   return (

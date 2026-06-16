@@ -33,14 +33,14 @@ function formatDateTime(value: unknown) {
 
 function levelBadge(level?: string | null) {
   if (level === "error") return <Badge variant="destructive">Error</Badge>;
-  if (level === "warning") return <Badge variant="warning" className="text-amber-700">Warning</Badge>;
+  if (level === "warning") return <Badge variant="warning">Warning</Badge>;
   return <Badge variant="secondary">Info</Badge>;
 }
 
 function statusBadge(status?: string | null) {
   return status === "failed"
     ? <Badge variant="destructive">失败</Badge>
-    : <Badge variant="success" className="text-emerald-700">成功</Badge>;
+    : <Badge variant="success">成功</Badge>;
 }
 
 function compactJson(value?: string | null) {

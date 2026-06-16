@@ -8,6 +8,7 @@ import {
   CheckCircle2,
   ChevronLeft,
   ClipboardList,
+  Code2,
   Gauge,
   Layers3,
   Link2,
@@ -171,7 +172,9 @@ function ConnectionForm({
               </SelectContent>
             </Select>
           </div>
-          {error ? <p className="rounded-md border border-destructive/20 bg-destructive/10 px-3 py-2 text-sm text-destructive">{error}</p> : null}
+          {error ? (
+            <p className="rounded-md border border-destructive/25 bg-destructive/10 px-3 py-2 text-sm text-destructive">{error}</p>
+          ) : null}
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => setOpen(false)}>
               取消
@@ -268,23 +271,27 @@ export function Shell() {
 
   return (
     <div className="app-shell flex h-screen min-h-0 overflow-hidden bg-background text-foreground">
-      <aside className="flex w-[300px] shrink-0 flex-col border-r border-border/80 bg-white/80 shadow-xl shadow-slate-950/5 backdrop-blur">
-        <div className="border-b border-border/80 px-5 py-4">
+      <aside className="flex w-[312px] shrink-0 flex-col border-r border-border/80 bg-background/78 shadow-[20px_0_70px_hsl(0_0%_0%/0.28)] backdrop-blur-2xl">
+        <div className="border-b border-border/75 px-5 py-4">
           <div className="flex items-center gap-3">
-            <div className="flex size-10 items-center justify-center rounded-md bg-primary text-primary-foreground shadow-lg shadow-primary/20">
-              <Layers3 className="size-5" />
+            <div className="flex size-10 items-center justify-center rounded-md border border-primary/25 bg-primary/12 text-primary shadow-[0_1px_0_hsl(0_0%_100%/0.08)_inset]">
+              <Code2 className="size-5" />
             </div>
             <div className="min-w-0">
               <h1 className="truncate text-base font-semibold">S2A Manager</h1>
-              <p className="truncate text-xs text-muted-foreground">Sub2API 轻量管理台</p>
+              <p className="truncate text-xs text-muted-foreground">Sub2API control plane</p>
             </div>
+          </div>
+          <div className="mt-4 flex items-center gap-2 rounded-md border border-border/70 bg-secondary/35 px-3 py-2 text-xs text-muted-foreground">
+            <Layers3 className="size-3.5 text-primary" />
+            <span className="truncate">统一管理倍率、账号与同步任务</span>
           </div>
         </div>
 
         <div className="flex items-center justify-between px-4 py-3">
           <div>
-            <p className="text-xs font-medium uppercase text-muted-foreground">连接</p>
-            <p className="text-xs text-muted-foreground">{connections?.length ?? 0} 个站点</p>
+            <p className="text-xs font-medium uppercase text-muted-foreground">Connections</p>
+            <p className="text-xs text-muted-foreground/80">{connections?.length ?? 0} 个站点</p>
           </div>
           <Button size="icon" variant="outline" onClick={openCreateConnection} title="添加连接">
             <Plus className="size-4" />
@@ -293,9 +300,9 @@ export function Shell() {
 
         <div className="flex-1 overflow-auto px-3 pb-3">
           {connectionsLoading ? (
-            <div className="rounded-md border border-dashed bg-white/55 p-4 text-sm text-muted-foreground">连接加载中...</div>
+            <div className="rounded-md border border-dashed border-border/80 bg-secondary/25 p-4 text-sm text-muted-foreground">连接加载中...</div>
           ) : connections?.length === 0 ? (
-            <div className="rounded-md border border-dashed bg-white/55 p-4 text-sm text-muted-foreground">
+            <div className="rounded-md border border-dashed border-border/80 bg-secondary/25 p-4 text-sm text-muted-foreground">
               还没有连接。添加一个 Sub2API 站点后即可开始管理倍率和同步。
             </div>
           ) : (
@@ -310,10 +317,10 @@ export function Shell() {
                     role="button"
                     tabIndex={0}
                     className={cn(
-                      "group w-full cursor-pointer rounded-md border p-3 text-left transition-all focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
+                      "group w-full cursor-pointer rounded-md border p-3 text-left transition-all focus:outline-none focus:ring-2 focus:ring-ring/70 focus:ring-offset-2 focus:ring-offset-background",
                       active
-                        ? "border-primary/35 bg-primary/10 shadow-sm shadow-primary/10"
-                        : "border-transparent bg-white/55 hover:border-border hover:bg-white",
+                        ? "border-primary/40 bg-primary/12 shadow-[0_1px_0_hsl(0_0%_100%/0.06)_inset]"
+                        : "border-transparent bg-secondary/25 hover:border-border/80 hover:bg-secondary/45",
                     )}
                     onClick={() => {
                       setSelectedId(connection.id);
@@ -329,21 +336,21 @@ export function Shell() {
                     }}
                   >
                     <div className="flex items-start gap-3">
-                      <div className={cn("mt-0.5 rounded-md p-2", active ? "bg-primary text-primary-foreground" : "bg-secondary text-muted-foreground")}>
+                      <div className={cn("mt-0.5 rounded-md border p-2", active ? "border-primary/30 bg-primary text-primary-foreground" : "border-border/70 bg-background/45 text-muted-foreground")}>
                         <Link2 className="size-4" />
                       </div>
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2">
                           <p className="truncate text-sm font-semibold">{connection.name}</p>
                           {connection.syncMode === "auto" ? (
-                            <span className="rounded-md bg-emerald-500/10 px-1.5 py-0.5 text-[10px] font-medium text-emerald-700">Auto</span>
+                            <span className="rounded-md border border-primary/20 bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary">Auto</span>
                           ) : null}
                         </div>
                         <p className="mt-0.5 truncate text-xs text-muted-foreground">{connection.baseUrl}</p>
                       </div>
                       {result ? (
                         <span title={result.message} className="mt-1 shrink-0">
-                          {result.ok ? <CheckCircle2 className="size-4 text-emerald-600" /> : <XCircle className="size-4 text-destructive" />}
+                          {result.ok ? <CheckCircle2 className="size-4 text-emerald-300" /> : <XCircle className="size-4 text-destructive" />}
                         </span>
                       ) : null}
                     </div>
@@ -404,31 +411,33 @@ export function Shell() {
       </aside>
 
       <main className="flex min-w-0 flex-1 flex-col">
-        <header className="flex h-16 shrink-0 items-center justify-between border-b border-border/80 bg-white/65 px-6 backdrop-blur">
+        <header className="flex h-[72px] shrink-0 items-center justify-between border-b border-border/75 bg-background/66 px-6 backdrop-blur-2xl">
           <div className="min-w-0">
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               {showAppSettings ? (
                 <>
-                  <Settings className="size-4" />
+                  <Settings className="size-4 text-primary" />
                   应用设置
                 </>
               ) : selected ? (
                 <>
-                  <ActiveIcon className="size-4" />
-                  {selected.name}
-                  <span>/</span>
-                  {activeTabMeta.label}
+                  <ActiveIcon className="size-4 text-primary" />
+                  <span className="truncate text-foreground">{selected.name}</span>
+                  <span className="text-muted-foreground/60">/</span>
+                  <span>{activeTabMeta.label}</span>
                 </>
               ) : (
                 "等待连接"
               )}
             </div>
-            <p className="mt-0.5 truncate text-xs text-muted-foreground">
+            <p className="mt-1 truncate text-xs text-muted-foreground">
               {showAppSettings ? "管理 Worker 与管理员账号" : selected ? activeTabMeta.description : "添加一个连接后开始管理"}
             </p>
           </div>
           <div className="flex items-center gap-2">
-            <span className="hidden max-w-[220px] truncate text-sm text-muted-foreground sm:inline">{session?.email}</span>
+            <span className="hidden max-w-[220px] truncate rounded-md border border-border/70 bg-secondary/30 px-2.5 py-1.5 text-xs text-muted-foreground sm:inline">
+              {session?.email}
+            </span>
             <Button variant={showAppSettings ? "secondary" : "ghost"} size="icon" onClick={() => setShowAppSettings((value) => !value)} title="应用设置">
               {showAppSettings ? <ChevronLeft className="size-4" /> : <Settings className="size-4" />}
             </Button>
@@ -444,7 +453,7 @@ export function Shell() {
           </div>
         ) : selected ? (
           <>
-            <nav className="shrink-0 border-b border-border/70 bg-white/45 px-5">
+            <nav className="shrink-0 border-b border-border/70 bg-background/38 px-5 backdrop-blur-xl">
               <div className="flex gap-1 overflow-x-auto py-2">
                 {tabs.map((tab) => {
                   const Icon = tab.icon;
@@ -453,8 +462,10 @@ export function Shell() {
                       key={tab.id}
                       type="button"
                       className={cn(
-                        "flex h-10 shrink-0 items-center gap-2 rounded-md px-3 text-sm font-medium transition-colors",
-                        activeTab === tab.id ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:bg-white hover:text-foreground",
+                        "flex h-10 shrink-0 items-center gap-2 rounded-md border border-transparent px-3 text-sm font-medium transition-colors",
+                        activeTab === tab.id
+                          ? "border-foreground/10 bg-foreground text-background shadow-[0_1px_0_hsl(0_0%_100%/0.18)_inset]"
+                          : "text-muted-foreground hover:border-border/70 hover:bg-secondary/50 hover:text-foreground",
                       )}
                       onClick={() => setActiveTab(tab.id)}
                     >
@@ -478,8 +489,8 @@ export function Shell() {
           </>
         ) : (
           <div className="flex min-h-0 flex-1 items-center justify-center p-6">
-            <div className="max-w-md rounded-md border border-dashed bg-white/70 p-8 text-center shadow-sm">
-              <div className="mx-auto flex size-12 items-center justify-center rounded-md bg-primary/10 text-primary">
+            <div className="codex-panel max-w-md rounded-md p-8 text-center">
+              <div className="mx-auto flex size-12 items-center justify-center rounded-md border border-primary/25 bg-primary/12 text-primary">
                 <Plus className="size-5" />
               </div>
               <h2 className="mt-4 text-lg font-semibold">添加第一个 Sub2API 连接</h2>

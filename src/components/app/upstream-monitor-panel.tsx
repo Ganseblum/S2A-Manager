@@ -130,7 +130,7 @@ function formatUptime(value: number | null) {
 }
 
 function statusBadge(status?: string | null) {
-  if (status === "success") return <Badge variant="default" className="bg-emerald-500/15 text-emerald-700">正常</Badge>;
+  if (status === "success") return <Badge variant="success">正常</Badge>;
   if (status === "failed") return <Badge variant="destructive">失败</Badge>;
   if (status === "resumed") return <Badge variant="secondary">已恢复</Badge>;
   if (status === "resume_failed") return <Badge variant="destructive">恢复失败</Badge>;
@@ -394,7 +394,7 @@ export function UpstreamMonitorPanel({ connectionId }: { connectionId: number })
                     <div className="font-mono text-xs text-muted-foreground">#{row.accountId}{row.missing ? " / 已从源站移除" : ""}</div>
                   </TableCell>
                   <TableCell>{[row.platform, row.type].filter(Boolean).join(" / ") || "-"}</TableCell>
-                  <TableCell>{row.schedulable === false ? <Badge variant="secondary">未调度</Badge> : <Badge variant="default" className="bg-emerald-500/15 text-emerald-700">可调度</Badge>}</TableCell>
+                  <TableCell>{row.schedulable === false ? <Badge variant="secondary">未调度</Badge> : <Badge variant="success">可调度</Badge>}</TableCell>
                   <TableCell>
                     {rule ? (
                       <div className="space-y-1">
@@ -421,7 +421,7 @@ export function UpstreamMonitorPanel({ connectionId }: { connectionId: number })
                   <TableCell>
                     {paused ? (
                       <div className="space-y-1">
-                        <Badge variant="warning" className="text-amber-700">暂停中</Badge>
+                        <Badge variant="warning">暂停中</Badge>
                         <div className="text-xs text-muted-foreground">{formatRelative(rule?.pausedUntil)}</div>
                       </div>
                     ) : (
