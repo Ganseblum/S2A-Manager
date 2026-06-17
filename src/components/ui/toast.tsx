@@ -26,13 +26,13 @@ type ToastContextValue = {
 const ToastContext = createContext<ToastContextValue | null>(null);
 
 const variantStyles: Record<ToastVariant, string> = {
-  success: "border-emerald-400/25 bg-emerald-400/10 text-emerald-100",
-  error: "border-destructive/25 bg-destructive/10 text-red-100",
-  info: "border-border/80 bg-card/95 text-foreground",
+  success: "border-emerald-500/20 bg-emerald-500/10 text-emerald-800 dark:text-emerald-100",
+  error: "border-destructive/25 bg-destructive/10 text-destructive",
+  info: "border-border/80 bg-card text-foreground",
 };
 
 const iconStyles: Record<ToastVariant, string> = {
-  success: "text-emerald-300",
+  success: "text-emerald-600 dark:text-emerald-300",
   error: "text-destructive",
   info: "text-primary",
 };
@@ -69,7 +69,7 @@ export function ToastProvider({ children }: PropsWithChildren) {
             <div
               key={toast.id}
               role={toast.variant === "error" ? "alert" : "status"}
-              className={cn("rounded-md border p-3 shadow-2xl shadow-black/40 backdrop-blur-xl", variantStyles[toast.variant])}
+              className={cn("rounded-md border p-3 shadow-[0_16px_48px_hsl(0_0%_0%/0.12)] backdrop-blur-xl dark:shadow-[0_20px_70px_hsl(0_0%_0%/0.45)]", variantStyles[toast.variant])}
             >
               <div className="flex items-start gap-3">
                 <Icon className={cn("mt-0.5 size-5 shrink-0", iconStyles[toast.variant])} />

@@ -133,7 +133,7 @@ export function AppSettingsPage() {
           </div>
 
           {timeoutWarning ? (
-            <div className="rounded-md border border-amber-400/25 bg-amber-400/10 px-3 py-2 text-sm text-amber-200">
+            <div className="rounded-md border border-amber-500/25 bg-amber-500/10 px-3 py-2 text-sm text-amber-700 dark:text-amber-200">
               当前检测超时不小于 worker 间隔。若源站持续超时，实际检测频率可能低于设定间隔。
             </div>
           ) : null}
@@ -191,7 +191,7 @@ function AdminUsersList() {
 
   return (
     <div className="space-y-4">
-      <div className="divide-y divide-border/70 rounded-md border border-border/80 bg-background/35">
+      <div className="divide-y divide-border/70 rounded-md border border-border/80 bg-card">
         {(users ?? []).length === 0 ? (
           <div className="p-3 text-sm text-muted-foreground">暂无管理员</div>
         ) : (

@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
-import { Loader2, Pencil, Plus, RefreshCw, Save, Trash2 } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { Archive, BellRing, CalendarClock, Loader2, Pencil, Plus, RefreshCw, Save, Trash2, X } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -24,8 +25,14 @@ type AnnouncementRow = {
   content: string;
   status?: AnnouncementStatus | null;
   notify_mode?: NotifyMode | null;
+  starts_at?: string | Date | null;
+  startsAt?: string | Date | null;
+  ends_at?: string | Date | null;
+  endsAt?: string | Date | null;
   created_at?: string | Date | null;
   createdAt?: string | Date | null;
+  updated_at?: string | Date | null;
+  updatedAt?: string | Date | null;
 };
 
 type AnnouncementRuleRow = {
@@ -34,6 +41,7 @@ type AnnouncementRuleRow = {
   enabled: boolean;
   titleTemplate: string;
   contentTemplate: string;
+  targetGroupIds?: number[] | null;
   status: AnnouncementStatus;
   notifyMode: NotifyMode;
   createdAt?: string | Date | null;
@@ -46,6 +54,8 @@ type AnnouncementForm = {
   content: string;
   status: AnnouncementStatus;
   notify_mode: NotifyMode;
+  startsAt: string;
+  endsAt: string;
 };
 
 type RuleForm = {
@@ -54,6 +64,7 @@ type RuleForm = {
   enabled: boolean;
   titleTemplate: string;
   contentTemplate: string;
+  targetGroupIds: number[];
   status: AnnouncementStatus;
   notifyMode: NotifyMode;
 };
@@ -83,9 +94,65 @@ const templateVariables = [
   "action",
 ];
 
+type GroupOption = {
+  id: number;
+  name: string;
+};
+
+type AnnouncementFilters = {
+  search: string;
+  status: "all" | AnnouncementStatus;
+  notifyMode: "all" | NotifyMode;
+  createdFrom: string;
+  createdTo: string;
+};
+
+type BulkTimeForm = {
+  startsAt: string;
+  endsAt: string;
+  clearStartsAt: boolean;
+  clearEndsAt: boolean;
+};
+
+const defaultAnnouncementFilters: AnnouncementFilters = {
+  search: "",
+  status: "all",
+  notifyMode: "all",
+  createdFrom: "",
+  createdTo: "",
+};
+
+const defaultBulkTimeForm: BulkTimeForm = {
+  startsAt: "",
+  endsAt: "",
+  clearStartsAt: false,
+  clearEndsAt: false,
+};
+
 function normalizeAnnouncements(response: unknown): AnnouncementRow[] {
   if (Array.isArray(response)) return response as AnnouncementRow[];
   return (response as { items?: AnnouncementRow[]; data?: AnnouncementRow[] } | undefined)?.items ?? [];
+}
+
+function toLocalInputValue(value?: string | Date | null) {
+  if (!value) return "";
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+function toIsoOrEmpty(value: string) {
+  if (!value.trim()) return "";
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? "" : date.toISOString();
+}
+
+function formatRangeLabel(from: string, to: string) {
+  if (!from && !to) return "全部时间";
+  if (from && to) return `${from} - ${to}`;
+  if (from) return `从 ${from}`;
+  return `${to} 前`;
 }
 
 function newAnnouncementForm(): AnnouncementForm {
@@ -94,6 +161,8 @@ function newAnnouncementForm(): AnnouncementForm {
     content: "",
     status: "active",
     notify_mode: "silent",
+    startsAt: "",
+    endsAt: "",
   };
 }
 
@@ -103,6 +172,7 @@ function newRuleForm(): RuleForm {
     enabled: true,
     titleTemplate: defaultRuleTitleTemplate,
     contentTemplate: defaultRuleContentTemplate,
+    targetGroupIds: [],
     status: "active",
     notifyMode: "silent",
   };
@@ -124,8 +194,21 @@ export function AnnouncementsPanel({ connectionId }: { connectionId: number }) {
   const [editData, setEditData] = useState<AnnouncementForm>(() => newAnnouncementForm());
   const [ruleOpen, setRuleOpen] = useState(false);
   const [ruleForm, setRuleForm] = useState<RuleForm>(() => newRuleForm());
+  const [groupSearch, setGroupSearch] = useState("");
   const [error, setError] = useState("");
   const [ruleError, setRuleError] = useState("");
+  const [filters, setFilters] = useState<AnnouncementFilters>(defaultAnnouncementFilters);
+  const [selectedIds, setSelectedIds] = useState<number[]>([]);
+  const [bulkStatusOpen, setBulkStatusOpen] = useState(false);
+  const [bulkNotifyOpen, setBulkNotifyOpen] = useState(false);
+  const [bulkTimeOpen, setBulkTimeOpen] = useState(false);
+  const [bulkStatus, setBulkStatus] = useState<AnnouncementStatus>("active");
+  const [bulkNotifyMode, setBulkNotifyMode] = useState<NotifyMode>("silent");
+  const [bulkTimeForm, setBulkTimeForm] = useState<BulkTimeForm>(defaultBulkTimeForm);
+  const groupsQuery = trpc.groups.list.useQuery(
+    { connectionId },
+    { enabled: ruleOpen, staleTime: 60_000, refetchOnWindowFocus: false },
+  );
 
   const preview = trpc.announcements.previewRule.useQuery(
     {
@@ -134,6 +217,14 @@ export function AnnouncementsPanel({ connectionId }: { connectionId: number }) {
     },
     { enabled: ruleOpen && (!!ruleForm.titleTemplate.trim() || !!ruleForm.contentTemplate.trim()) },
   );
+
+  const groupOptions = ((groupsQuery.data ?? []) as GroupOption[]).filter((group) => Number.isInteger(group.id) && group.id > 0);
+  const groupNameMap = new Map(groupOptions.map((group) => [group.id, group.name]));
+  const filteredGroupOptions = groupOptions.filter((group) => {
+    const query = groupSearch.trim().toLowerCase();
+    if (!query) return true;
+    return `${group.name} ${group.id}`.toLowerCase().includes(query);
+  });
 
   const create = trpc.announcements.create.useMutation({
     onSuccess: async () => {
@@ -167,6 +258,33 @@ export function AnnouncementsPanel({ connectionId }: { connectionId: number }) {
       showToast({ title: "删除公告失败", description: e.message, variant: "error" });
     },
   });
+  const bulkUpdate = trpc.announcements.bulkUpdate.useMutation({
+    onSuccess: async (result) => {
+      await refetch();
+      await utils.sync.logs.invalidate();
+      setBulkStatusOpen(false);
+      setBulkNotifyOpen(false);
+      setBulkTimeOpen(false);
+      setSelectedIds([]);
+      showToast({ title: `已更新 ${result.success}/${result.total} 条公告`, variant: result.failed ? "error" : "success" });
+    },
+    onError: (e) => {
+      setError(e.message);
+      showToast({ title: "批量更新公告失败", description: e.message, variant: "error" });
+    },
+  });
+  const bulkDelete = trpc.announcements.bulkDelete.useMutation({
+    onSuccess: async (result) => {
+      await refetch();
+      await utils.sync.logs.invalidate();
+      setSelectedIds([]);
+      showToast({ title: `已删除 ${result.success}/${result.total} 条公告`, variant: result.failed ? "error" : "success" });
+    },
+    onError: (e) => {
+      setError(e.message);
+      showToast({ title: "批量删除公告失败", description: e.message, variant: "error" });
+    },
+  });
 
   const createRule = trpc.announcements.createRule.useMutation();
   const updateRule = trpc.announcements.updateRule.useMutation();
@@ -186,6 +304,8 @@ export function AnnouncementsPanel({ connectionId }: { connectionId: number }) {
       content: announcement.content,
       status: announcement.status ?? "active",
       notify_mode: announcement.notify_mode ?? "silent",
+      startsAt: toLocalInputValue(announcement.starts_at ?? announcement.startsAt),
+      endsAt: toLocalInputValue(announcement.ends_at ?? announcement.endsAt),
     });
     setError("");
     setEditOpen(true);
@@ -194,6 +314,7 @@ export function AnnouncementsPanel({ connectionId }: { connectionId: number }) {
   const openCreateRule = () => {
     setRuleForm(newRuleForm());
     setRuleError("");
+    setGroupSearch("");
     setRuleOpen(true);
   };
 
@@ -204,10 +325,12 @@ export function AnnouncementsPanel({ connectionId }: { connectionId: number }) {
       enabled: rule.enabled,
       titleTemplate: rule.titleTemplate,
       contentTemplate: rule.contentTemplate,
+      targetGroupIds: rule.targetGroupIds ?? [],
       status: rule.status,
       notifyMode: rule.notifyMode,
     });
     setRuleError("");
+    setGroupSearch("");
     setRuleOpen(true);
   };
 
@@ -224,9 +347,26 @@ export function AnnouncementsPanel({ connectionId }: { connectionId: number }) {
       return;
     }
     if (editData.id) {
-      update.mutate({ connectionId, id: editData.id, title: editData.title, content: editData.content, status: editData.status, notify_mode: editData.notify_mode });
+      update.mutate({
+        connectionId,
+        id: editData.id,
+        title: editData.title,
+        content: editData.content,
+        status: editData.status,
+        notify_mode: editData.notify_mode,
+        starts_at: toIsoOrEmpty(editData.startsAt),
+        ends_at: toIsoOrEmpty(editData.endsAt),
+      });
     } else {
-      create.mutate({ connectionId, title: editData.title, content: editData.content, status: editData.status, notify_mode: editData.notify_mode });
+      create.mutate({
+        connectionId,
+        title: editData.title,
+        content: editData.content,
+        status: editData.status,
+        notify_mode: editData.notify_mode,
+        starts_at: toIsoOrEmpty(editData.startsAt),
+        ends_at: toIsoOrEmpty(editData.endsAt),
+      });
     }
   };
 
@@ -239,6 +379,7 @@ export function AnnouncementsPanel({ connectionId }: { connectionId: number }) {
         enabled: ruleForm.enabled,
         titleTemplate: ruleForm.titleTemplate.trim(),
         contentTemplate: ruleForm.contentTemplate.trim(),
+        targetGroupIds: Array.from(new Set(ruleForm.targetGroupIds)).sort((a, b) => a - b),
         status: ruleForm.status,
         notifyMode: ruleForm.notifyMode,
       };
@@ -298,6 +439,139 @@ export function AnnouncementsPanel({ connectionId }: { connectionId: number }) {
   };
 
   const notifyLabel = (mode?: NotifyMode | null) => mode === "popup" ? "弹窗" : "静默";
+  const list = useMemo(() => normalizeAnnouncements(announcements), [announcements]);
+  const rules = useMemo(() => (rulesQuery.data ?? []) as AnnouncementRuleRow[], [rulesQuery.data]);
+
+  const filteredAnnouncements = useMemo(() => {
+    const query = filters.search.trim().toLowerCase();
+    const createdFrom = filters.createdFrom ? new Date(filters.createdFrom) : null;
+    const createdTo = filters.createdTo ? new Date(filters.createdTo) : null;
+    const hasCreatedFrom = createdFrom && !Number.isNaN(createdFrom.getTime());
+    const hasCreatedTo = createdTo && !Number.isNaN(createdTo.getTime());
+    if (hasCreatedTo) createdTo!.setHours(23, 59, 59, 999);
+
+    return list.filter((announcement) => {
+      const title = announcement.title ?? "";
+      const content = announcement.content ?? "";
+      const status = announcement.status ?? "active";
+      const notifyMode = announcement.notify_mode ?? "silent";
+      const createdAt = announcement.created_at ?? announcement.createdAt;
+      const createdDate = createdAt ? new Date(createdAt) : null;
+
+      if (filters.status !== "all" && status !== filters.status) return false;
+      if (filters.notifyMode !== "all" && notifyMode !== filters.notifyMode) return false;
+      if (query && !`${title} ${content}`.toLowerCase().includes(query)) return false;
+      if (hasCreatedFrom && (!createdDate || Number.isNaN(createdDate.getTime()) || createdDate < createdFrom!)) return false;
+      if (hasCreatedTo && (!createdDate || Number.isNaN(createdDate.getTime()) || createdDate > createdTo!)) return false;
+      return true;
+    });
+  }, [filters, list]);
+
+  const selectedCount = selectedIds.length;
+  const selectedAnnouncementIds = useMemo(() => new Set(selectedIds), [selectedIds]);
+  const selectedAnnouncements = useMemo(
+    () => filteredAnnouncements.filter((announcement) => selectedAnnouncementIds.has(announcement.id)),
+    [filteredAnnouncements, selectedAnnouncementIds],
+  );
+  const allVisibleSelected = filteredAnnouncements.length > 0 && filteredAnnouncements.every((announcement) => selectedAnnouncementIds.has(announcement.id));
+  const someVisibleSelected = filteredAnnouncements.some((announcement) => selectedAnnouncementIds.has(announcement.id));
+
+  useEffect(() => {
+    const visibleIds = new Set(filteredAnnouncements.map((announcement) => announcement.id));
+    setSelectedIds((current) => current.filter((id) => visibleIds.has(id)));
+  }, [filteredAnnouncements]);
+
+  const targetGroupLabel = (targetGroupIds: number[]) => {
+    if (targetGroupIds.length === 0) return "全部分组";
+    const names = targetGroupIds.map((id) => groupNameMap.get(id) ?? `#${id}`);
+    if (names.length <= 3) return names.join("、");
+    return `${names.slice(0, 2).join("、")} 等 ${names.length} 个分组`;
+  };
+
+  const targetGroupCountLabel = (targetGroupIds: number[]) => {
+    if (targetGroupIds.length === 0) return "全部";
+    return `${targetGroupIds.length} 个分组`;
+  };
+
+  const toggleTargetGroup = (groupId: number, checked: boolean) => {
+    setRuleForm((prev) => {
+      const next = new Set(prev.targetGroupIds);
+      if (checked) next.add(groupId);
+      else next.delete(groupId);
+      return { ...prev, targetGroupIds: Array.from(next).sort((a, b) => a - b) };
+    });
+  };
+
+  const selectAllGroups = () => {
+    setRuleForm((prev) => ({ ...prev, targetGroupIds: groupOptions.map((group) => group.id) }));
+  };
+
+  const clearTargetGroups = () => {
+    setRuleForm((prev) => ({ ...prev, targetGroupIds: [] }));
+  };
+
+  const toggleAnnouncement = (id: number, checked: boolean) => {
+    setSelectedIds((current) => {
+      if (checked) return Array.from(new Set([...current, id]));
+      return current.filter((item) => item !== id);
+    });
+  };
+
+  const toggleVisibleAnnouncements = (checked: boolean) => {
+    setSelectedIds(checked ? filteredAnnouncements.map((announcement) => announcement.id) : []);
+  };
+
+  const resetFilters = () => {
+    setFilters(defaultAnnouncementFilters);
+    setSelectedIds([]);
+  };
+
+  const runBulkUpdate = (data: { status?: AnnouncementStatus; notify_mode?: NotifyMode; starts_at?: string | null; ends_at?: string | null }) => {
+    if (selectedCount === 0) return;
+    bulkUpdate.mutate({ connectionId, ids: selectedIds, data });
+  };
+
+  const runBulkDelete = () => {
+    if (selectedCount === 0) return;
+    if (!confirm(`确定删除选中的 ${selectedCount} 条公告？`)) return;
+    bulkDelete.mutate({ connectionId, ids: selectedIds });
+  };
+
+  const openBulkStatus = (status: AnnouncementStatus) => {
+    setBulkStatus(status);
+    setBulkStatusOpen(true);
+  };
+
+  const openBulkNotify = () => {
+    setBulkNotifyMode("silent");
+    setBulkNotifyOpen(true);
+  };
+
+  const openBulkTime = () => {
+    const first = selectedAnnouncements[0];
+    setBulkTimeForm({
+      startsAt: toLocalInputValue(first?.starts_at ?? first?.startsAt),
+      endsAt: toLocalInputValue(first?.ends_at ?? first?.endsAt),
+      clearStartsAt: false,
+      clearEndsAt: false,
+    });
+    setBulkTimeOpen(true);
+  };
+
+  const submitBulkTime = () => {
+    const payload: { starts_at?: string | null; ends_at?: string | null } = {};
+    if (bulkTimeForm.clearStartsAt) payload.starts_at = null;
+    else if (bulkTimeForm.startsAt) payload.starts_at = toIsoOrEmpty(bulkTimeForm.startsAt);
+    if (bulkTimeForm.clearEndsAt) payload.ends_at = null;
+    else if (bulkTimeForm.endsAt) payload.ends_at = toIsoOrEmpty(bulkTimeForm.endsAt);
+    if (!("starts_at" in payload) && !("ends_at" in payload)) {
+      setError("请填写开始或结束展示时间，或选择清空时间");
+      return;
+    }
+    runBulkUpdate(payload);
+  };
+
+  const anyBulkPending = bulkUpdate.isPending || bulkDelete.isPending;
 
   if (isLoading && rulesQuery.isLoading) {
     return (
@@ -307,9 +581,6 @@ export function AnnouncementsPanel({ connectionId }: { connectionId: number }) {
       </div>
     );
   }
-
-  const list = normalizeAnnouncements(announcements);
-  const rules = (rulesQuery.data ?? []) as AnnouncementRuleRow[];
 
   return (
     <div className="space-y-4">
@@ -346,6 +617,7 @@ export function AnnouncementsPanel({ connectionId }: { connectionId: number }) {
                 <TableHead className="w-24">启用</TableHead>
                 <TableHead className="w-24">发布</TableHead>
                 <TableHead className="w-24">通知</TableHead>
+                <TableHead>适用分组</TableHead>
                 <TableHead>标题模板</TableHead>
                 <TableHead className="w-40">更新时间</TableHead>
                 <TableHead className="w-24">操作</TableHead>
@@ -353,9 +625,9 @@ export function AnnouncementsPanel({ connectionId }: { connectionId: number }) {
             </TableHeader>
             <TableBody>
               {rulesQuery.isLoading ? (
-                <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground">加载公告规则中...</TableCell></TableRow>
+                <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground">加载公告规则中...</TableCell></TableRow>
               ) : rules.length === 0 ? (
-                <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground">暂无公告规则</TableCell></TableRow>
+                <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground">暂无公告规则</TableCell></TableRow>
               ) : (
                 rules.map((rule, idx) => (
                   <TableRow key={rule.id}>
@@ -364,6 +636,10 @@ export function AnnouncementsPanel({ connectionId }: { connectionId: number }) {
                     <TableCell>{rule.enabled ? <Badge variant="success">启用</Badge> : <Badge variant="secondary">停用</Badge>}</TableCell>
                     <TableCell>{statusBadge(rule.status)}</TableCell>
                     <TableCell>{notifyLabel(rule.notifyMode)}</TableCell>
+                    <TableCell className="text-sm text-muted-foreground">
+                      <div className="max-w-[220px] truncate">{targetGroupLabel(rule.targetGroupIds ?? [])}</div>
+                      <div className="text-xs">{targetGroupCountLabel(rule.targetGroupIds ?? [])}</div>
+                    </TableCell>
                     <TableCell className="max-w-[320px] truncate font-mono text-xs">{rule.titleTemplate}</TableCell>
                     <TableCell className="text-sm text-muted-foreground">{dateLabel(rule.updatedAt ?? rule.createdAt)}</TableCell>
                     <TableCell>
@@ -385,31 +661,116 @@ export function AnnouncementsPanel({ connectionId }: { connectionId: number }) {
       </Card>
 
       <Card>
-        <CardContent className="p-0">
+        <CardContent className="space-y-4 p-4">
+          <div className="grid gap-3 lg:grid-cols-[1.4fr_0.8fr_0.8fr_0.9fr_0.9fr_auto]">
+            <div className="space-y-1">
+              <Label>搜索</Label>
+              <Input value={filters.search} onChange={(e) => setFilters((current) => ({ ...current, search: e.target.value }))} placeholder="标题或内容" />
+            </div>
+            <div className="space-y-1">
+              <Label>状态</Label>
+              <Select value={filters.status} onValueChange={(value) => setFilters((current) => ({ ...current, status: value as AnnouncementFilters["status"] }))}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">全部</SelectItem>
+                  <SelectItem value="active">已发布</SelectItem>
+                  <SelectItem value="draft">草稿</SelectItem>
+                  <SelectItem value="archived">已归档</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <Label>展示方式</Label>
+              <Select value={filters.notifyMode} onValueChange={(value) => setFilters((current) => ({ ...current, notifyMode: value as AnnouncementFilters["notifyMode"] }))}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">全部</SelectItem>
+                  <SelectItem value="silent">静默</SelectItem>
+                  <SelectItem value="popup">弹窗</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <Label>创建日期从</Label>
+              <Input type="date" value={filters.createdFrom} onChange={(e) => setFilters((current) => ({ ...current, createdFrom: e.target.value }))} />
+            </div>
+            <div className="space-y-1">
+              <Label>创建日期到</Label>
+              <Input type="date" value={filters.createdTo} onChange={(e) => setFilters((current) => ({ ...current, createdTo: e.target.value }))} />
+            </div>
+            <div className="flex items-end">
+              <Button variant="outline" type="button" onClick={resetFilters}>
+                <X className="h-4 w-4" />
+                清空
+              </Button>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-border/70 px-3 py-2">
+            <div className="text-sm text-muted-foreground">
+              已筛选 {filteredAnnouncements.length} / 共 {list.length} 条，时间：{formatRangeLabel(filters.createdFrom, filters.createdTo)}，已选 {selectedCount} 条
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <Button variant="outline" size="sm" onClick={() => openBulkStatus("archived")} disabled={selectedCount === 0 || anyBulkPending}>
+                <Archive className="h-4 w-4" />
+                归档
+              </Button>
+              <Button variant="outline" size="sm" onClick={openBulkNotify} disabled={selectedCount === 0 || anyBulkPending}>
+                <BellRing className="h-4 w-4" />
+                展示方式
+              </Button>
+              <Button variant="outline" size="sm" onClick={openBulkTime} disabled={selectedCount === 0 || anyBulkPending}>
+                <CalendarClock className="h-4 w-4" />
+                修改时间
+              </Button>
+              <Button variant="destructive" size="sm" onClick={runBulkDelete} disabled={selectedCount === 0 || anyBulkPending}>
+                {bulkDelete.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                删除
+              </Button>
+            </div>
+          </div>
+
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="w-16">#</TableHead>
+                <TableHead className="w-12">
+                  <Checkbox checked={allVisibleSelected ? true : someVisibleSelected ? "indeterminate" : false} onCheckedChange={(value) => toggleVisibleAnnouncements(value === true)} aria-label="选择当前筛选结果" />
+                </TableHead>
                 <TableHead>标题</TableHead>
                 <TableHead className="w-24">状态</TableHead>
-                <TableHead className="w-24">通知</TableHead>
-                <TableHead className="w-40">时间</TableHead>
+                <TableHead className="w-28">展示方式</TableHead>
+                <TableHead className="w-44">创建时间</TableHead>
+                <TableHead className="w-44">展示时间</TableHead>
                 <TableHead className="w-24">操作</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {list.length === 0 ? (
-                <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground">暂无公告</TableCell></TableRow>
+                <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground">暂无公告</TableCell></TableRow>
+              ) : filteredAnnouncements.length === 0 ? (
+                <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground">没有匹配的公告</TableCell></TableRow>
               ) : (
-                list.map((announcement, idx) => {
+                filteredAnnouncements.map((announcement) => {
                   const createdAt = announcement.created_at ?? announcement.createdAt;
+                  const startsAt = announcement.starts_at ?? announcement.startsAt;
+                  const endsAt = announcement.ends_at ?? announcement.endsAt;
+                  const checked = selectedAnnouncementIds.has(announcement.id);
                   return (
-                    <TableRow key={announcement.id ?? idx}>
-                      <TableCell>{idx + 1}</TableCell>
-                      <TableCell className="font-medium">{announcement.title}</TableCell>
+                    <TableRow key={announcement.id}>
+                      <TableCell>
+                        <Checkbox checked={checked} onCheckedChange={(value) => toggleAnnouncement(announcement.id, value === true)} aria-label={`选择 ${announcement.title}`} />
+                      </TableCell>
+                      <TableCell>
+                        <div className="max-w-[460px] truncate font-medium">{announcement.title}</div>
+                        <div className="max-w-[460px] truncate text-xs text-muted-foreground">{announcement.content}</div>
+                      </TableCell>
                       <TableCell>{statusBadge(announcement.status ?? "active")}</TableCell>
                       <TableCell>{notifyLabel(announcement.notify_mode)}</TableCell>
                       <TableCell className="text-sm text-muted-foreground">{dateLabel(createdAt)}</TableCell>
+                      <TableCell className="text-xs text-muted-foreground">
+                        <div>开始：{dateLabel(startsAt)}</div>
+                        <div>结束：{dateLabel(endsAt)}</div>
+                      </TableCell>
                       <TableCell>
                         <div className="flex gap-1">
                           <Button variant="ghost" size="icon" className="h-8 w-8" disabled={update.isPending} title="编辑公告" onClick={() => openEdit(announcement)}><Pencil className="h-4 w-4" /></Button>
@@ -463,6 +824,45 @@ export function AnnouncementsPanel({ connectionId }: { connectionId: number }) {
                     <SelectItem value="popup">弹窗</SelectItem>
                   </SelectContent>
                 </Select>
+              </div>
+            </div>
+
+            <div className="space-y-3 rounded-md border border-border/70 p-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <Label>适用分组</Label>
+                  <p className="text-xs text-muted-foreground">留空表示全部分组；只勾选的分组倍率变动才会发公告。</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button variant="outline" size="sm" type="button" onClick={selectAllGroups} disabled={groupOptions.length === 0}>全选</Button>
+                  <Button variant="outline" size="sm" type="button" onClick={clearTargetGroups}>清空</Button>
+                </div>
+              </div>
+              <Input value={groupSearch} onChange={(e) => setGroupSearch(e.target.value)} placeholder="搜索分组名称或 ID" />
+              <div className="max-h-56 overflow-y-auto rounded-md border border-border/60">
+                {groupsQuery.isLoading ? (
+                  <div className="p-4 text-sm text-muted-foreground">加载分组中...</div>
+                ) : groupsQuery.error ? (
+                  <div className="p-4 text-sm text-destructive">加载分组失败：{groupsQuery.error.message}</div>
+                ) : filteredGroupOptions.length === 0 ? (
+                  <div className="p-4 text-sm text-muted-foreground">没有匹配的分组</div>
+                ) : (
+                  <div className="divide-y divide-border/60">
+                    {filteredGroupOptions.map((group) => {
+                      const checked = ruleForm.targetGroupIds.includes(group.id);
+                      return (
+                        <label key={group.id} className="flex cursor-pointer items-center gap-3 px-3 py-2 text-sm hover:bg-secondary/50">
+                          <Checkbox checked={checked} onCheckedChange={(value) => toggleTargetGroup(group.id, value === true)} />
+                          <span className="min-w-0 flex-1 truncate">{group.name}</span>
+                          <span className="text-xs text-muted-foreground">#{group.id}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+              <div className="text-xs text-muted-foreground">
+                当前：{targetGroupLabel(ruleForm.targetGroupIds)}
               </div>
             </div>
 
@@ -538,6 +938,16 @@ export function AnnouncementsPanel({ connectionId }: { connectionId: number }) {
                 </Select>
               </div>
             </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label>开始展示时间</Label>
+                <Input type="datetime-local" value={editData.startsAt} onChange={(e) => setEditData((prev) => ({ ...prev, startsAt: e.target.value }))} />
+              </div>
+              <div className="space-y-2">
+                <Label>结束展示时间</Label>
+                <Input type="datetime-local" value={editData.endsAt} onChange={(e) => setEditData((prev) => ({ ...prev, endsAt: e.target.value }))} />
+              </div>
+            </div>
             <div className="space-y-2">
               <Label>内容</Label>
               <Textarea value={editData.content} onChange={(e) => setEditData((prev) => ({ ...prev, content: e.target.value }))} rows={4} required />
@@ -549,6 +959,103 @@ export function AnnouncementsPanel({ connectionId }: { connectionId: number }) {
             <Button onClick={handleSubmit} disabled={create.isPending || update.isPending}>
               {create.isPending || update.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
               {editData.id ? "保存" : "创建"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={bulkStatusOpen} onOpenChange={setBulkStatusOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader><DialogTitle>批量修改状态</DialogTitle></DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">将选中的 {selectedCount} 条公告统一修改状态。</p>
+            <div className="space-y-2">
+              <Label>状态</Label>
+              <Select value={bulkStatus} onValueChange={(value) => setBulkStatus(value as AnnouncementStatus)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="active">已发布</SelectItem>
+                  <SelectItem value="draft">草稿</SelectItem>
+                  <SelectItem value="archived">已归档</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setBulkStatusOpen(false)} disabled={bulkUpdate.isPending}>取消</Button>
+            <Button onClick={() => runBulkUpdate({ status: bulkStatus })} disabled={bulkUpdate.isPending || selectedCount === 0}>
+              {bulkUpdate.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+              保存
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={bulkNotifyOpen} onOpenChange={setBulkNotifyOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader><DialogTitle>批量修改展示方式</DialogTitle></DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">将选中的 {selectedCount} 条公告统一设置为静默或弹窗展示。</p>
+            <div className="space-y-2">
+              <Label>展示方式</Label>
+              <Select value={bulkNotifyMode} onValueChange={(value) => setBulkNotifyMode(value as NotifyMode)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="silent">静默</SelectItem>
+                  <SelectItem value="popup">弹窗</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setBulkNotifyOpen(false)} disabled={bulkUpdate.isPending}>取消</Button>
+            <Button onClick={() => runBulkUpdate({ notify_mode: bulkNotifyMode })} disabled={bulkUpdate.isPending || selectedCount === 0}>
+              {bulkUpdate.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+              保存
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={bulkTimeOpen} onOpenChange={setBulkTimeOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader><DialogTitle>批量修改展示时间</DialogTitle></DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">修改选中 {selectedCount} 条公告的开始展示时间和结束展示时间；未填写且未勾选清空的字段不会修改。</p>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label>开始展示时间</Label>
+                <Input
+                  type="datetime-local"
+                  value={bulkTimeForm.startsAt}
+                  onChange={(e) => setBulkTimeForm((current) => ({ ...current, startsAt: e.target.value, clearStartsAt: false }))}
+                  disabled={bulkTimeForm.clearStartsAt}
+                />
+                <label className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <Checkbox checked={bulkTimeForm.clearStartsAt} onCheckedChange={(value) => setBulkTimeForm((current) => ({ ...current, clearStartsAt: value === true, startsAt: value === true ? "" : current.startsAt }))} />
+                  清空开始时间
+                </label>
+              </div>
+              <div className="space-y-2">
+                <Label>结束展示时间</Label>
+                <Input
+                  type="datetime-local"
+                  value={bulkTimeForm.endsAt}
+                  onChange={(e) => setBulkTimeForm((current) => ({ ...current, endsAt: e.target.value, clearEndsAt: false }))}
+                  disabled={bulkTimeForm.clearEndsAt}
+                />
+                <label className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <Checkbox checked={bulkTimeForm.clearEndsAt} onCheckedChange={(value) => setBulkTimeForm((current) => ({ ...current, clearEndsAt: value === true, endsAt: value === true ? "" : current.endsAt }))} />
+                  清空结束时间
+                </label>
+              </div>
+            </div>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setBulkTimeOpen(false)} disabled={bulkUpdate.isPending}>取消</Button>
+            <Button onClick={submitBulkTime} disabled={bulkUpdate.isPending || selectedCount === 0}>
+              {bulkUpdate.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+              保存
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -387,11 +387,11 @@ export class Sub2ApiAdminClient {
   async getAnnouncement(id: number) {
     return this.request("GET", `/announcements/${id}`);
   }
-  async createAnnouncement(data: { title: string; content: string; status?: string; notify_mode?: string }) {
-    return this.request("POST", "/announcements", data as Record<string, unknown>);
+  async createAnnouncement(data: { title: string; content: string } & Record<string, unknown>) {
+    return this.request("POST", "/announcements", data);
   }
-  async updateAnnouncement(id: number, data: { title?: string; content?: string; status?: string; notify_mode?: string }) {
-    return this.request("PUT", `/announcements/${id}`, data as Record<string, unknown>);
+  async updateAnnouncement(id: number, data: Record<string, unknown>) {
+    return this.request("PUT", `/announcements/${id}`, data);
   }
   async deleteAnnouncement(id: number) {
     return this.request("DELETE", `/announcements/${id}`);

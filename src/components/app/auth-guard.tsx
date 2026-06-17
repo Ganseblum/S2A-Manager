@@ -26,7 +26,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
   if (isLoading) {
     return (
       <div className="auth-screen flex h-screen items-center justify-center">
-        <div className="rounded-md border border-border/80 bg-card/90 px-4 py-3 text-sm text-muted-foreground shadow-2xl shadow-black/35 backdrop-blur-xl">
+        <div className="rounded-md border border-border/80 bg-card px-4 py-3 text-sm text-muted-foreground shadow-[0_16px_48px_hsl(0_0%_0%/0.08)] dark:shadow-[0_20px_70px_hsl(0_0%_0%/0.35)]">
           加载中...
         </div>
       </div>

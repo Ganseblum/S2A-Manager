@@ -243,6 +243,7 @@ model AnnouncementRule {
   enabled       Boolean    @default(true)
   titleTemplate String     @map("title_template")
   contentTemplate String   @map("content_template")
+  targetGroupIds Int[]     @default([]) @map("target_group_ids")
   status        String     @default("active")
   notifyMode    String     @default("silent") @map("notify_mode")
   createdAt     DateTime   @default(now()) @map("created_at") @db.Timestamptz(3)

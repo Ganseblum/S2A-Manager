@@ -510,7 +510,15 @@ export function BlSyncPanel({ connectionId }: { connectionId: number }) {
                     <TableCell className="font-mono">{site.intervalMin}m</TableCell>
                     <TableCell className="font-mono">{formatRate(site.rechargeRatio)}</TableCell>
                     <TableCell>
-                      <span className={site.lastStatus === "online" ? "text-emerald-300" : site.lastStatus === "offline" ? "text-destructive" : "text-muted-foreground"}>
+                      <span
+                        className={
+                          site.lastStatus === "online"
+                            ? "text-emerald-700 dark:text-emerald-300"
+                            : site.lastStatus === "offline"
+                              ? "text-destructive"
+                              : "text-muted-foreground"
+                        }
+                      >
                         {statusText(site.lastStatus)}
                       </span>
                       {site.lastError ? <div className="max-w-[220px] truncate text-xs text-muted-foreground" title={site.lastError}>{site.lastError}</div> : null}

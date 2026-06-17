@@ -1,6 +1,7 @@
-﻿import type { Metadata } from "next";
-import { TrpcProvider } from "@/components/app/trpc-provider";
+import type { Metadata } from "next";
 import { AuthGuard } from "@/components/app/auth-guard";
+import { ThemeProvider } from "@/components/app/theme-provider";
+import { TrpcProvider } from "@/components/app/trpc-provider";
 import { ToastProvider } from "@/components/ui/toast";
 import "./globals.css";
 
@@ -10,11 +11,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="zh-CN" suppressHydrationWarning>
       <body>
-        <ToastProvider>
-          <TrpcProvider>
-            <AuthGuard>{children}</AuthGuard>
-          </TrpcProvider>
-        </ToastProvider>
+        <ThemeProvider>
+          <ToastProvider>
+            <TrpcProvider>
+              <AuthGuard>{children}</AuthGuard>
+            </TrpcProvider>
+          </ToastProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

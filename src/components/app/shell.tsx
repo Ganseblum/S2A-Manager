@@ -23,13 +23,7 @@ import {
   Wifi,
   XCircle,
 } from "lucide-react";
-import { trpc } from "@/lib/trpc";
-import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ThemeToggle } from "@/components/app/theme-toggle";
 import { AccountsPanel } from "@/components/app/accounts-panel";
 import { AnnouncementsPanel } from "@/components/app/announcements-panel";
 import { AppSettingsPage } from "@/components/app/app-settings-page";
@@ -39,10 +33,18 @@ import { LogsPanel } from "@/components/app/logs-panel";
 import { ServiceStatusPanel } from "@/components/app/service-status-panel";
 import { SiteSettingsPanel } from "@/components/app/settings-panel";
 import { UpstreamMonitorPanel } from "@/components/app/upstream-monitor-panel";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/components/ui/toast";
+import { trpc } from "@/lib/trpc";
+import { cn } from "@/lib/utils";
 
 type Tab = "service-status" | "groups" | "bl-sync" | "accounts" | "upstream-monitor" | "announcements" | "logs" | "settings";
 type ConnectionEdit = { id: number; name: string; baseUrl: string; syncMode: string };
+type ConnectionItem = ConnectionEdit & { syncMode: string };
 
 const tabs: Array<{ id: Tab; label: string; description: string; icon: React.ComponentType<{ className?: string }> }> = [
   { id: "service-status", label: "服务状态", description: "Web、数据库和 worker 状态", icon: ServerCog },
@@ -189,6 +191,127 @@ function ConnectionForm({
   );
 }
 
+function ConnectionCard({
+  connection,
+  active,
+  result,
+  testPending,
+  deletePending,
+  onSelect,
+  onTest,
+  onEdit,
+  onDelete,
+  compact = false,
+}: {
+  connection: ConnectionItem;
+  active: boolean;
+  result?: { ok: boolean; message: string };
+  testPending: boolean;
+  deletePending: boolean;
+  onSelect: () => void;
+  onTest: () => void;
+  onEdit: () => void;
+  onDelete: () => void;
+  compact?: boolean;
+}) {
+  return (
+    <div
+      role="button"
+      tabIndex={0}
+      className={cn(
+        "group cursor-pointer rounded-md border text-left transition-colors focus:outline-none focus:ring-2 focus:ring-ring/25 focus:ring-offset-2 focus:ring-offset-background",
+        compact ? "w-[min(82vw,300px)] shrink-0 p-3" : "w-full p-3",
+        active ? "border-foreground bg-foreground text-background" : "border-border/70 bg-card hover:bg-accent",
+      )}
+      onClick={onSelect}
+      onKeyDown={(event) => {
+        if (event.key !== "Enter" && event.key !== " ") return;
+        event.preventDefault();
+        onSelect();
+      }}
+    >
+      <div className="flex items-start gap-3">
+        <div
+          className={cn(
+            "mt-0.5 rounded-md border p-2",
+            active ? "border-background/20 bg-background/10 text-background" : "border-border/70 bg-muted text-muted-foreground",
+          )}
+        >
+          <Link2 className="size-4" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <p className="truncate text-sm font-semibold">{connection.name}</p>
+            {connection.syncMode === "auto" ? (
+              <span
+                className={cn(
+                  "rounded-md border px-1.5 py-0.5 text-[10px] font-medium",
+                  active ? "border-background/20 text-background/80" : "border-primary/15 bg-primary/8 text-primary",
+                )}
+              >
+                Auto
+              </span>
+            ) : null}
+          </div>
+          <p className={cn("mt-0.5 truncate text-xs", active ? "text-background/70" : "text-muted-foreground")}>{connection.baseUrl}</p>
+        </div>
+        {result ? (
+          <span title={result.message} className="mt-1 shrink-0">
+            {result.ok ? (
+              <CheckCircle2 className={cn("size-4", active ? "text-emerald-200" : "text-emerald-600 dark:text-emerald-300")} />
+            ) : (
+              <XCircle className="size-4 text-destructive" />
+            )}
+          </span>
+        ) : null}
+      </div>
+      <div className={cn("mt-3 flex items-center gap-1", compact ? "opacity-100" : "opacity-100 md:opacity-0 md:transition-opacity md:group-hover:opacity-100")}>
+        <Button
+          type="button"
+          variant={active ? "secondary" : "ghost"}
+          size="sm"
+          className={cn("h-7 px-2", active && "border-background/20 bg-background/10 text-background hover:bg-background/15 hover:text-background")}
+          disabled={testPending}
+          onClick={(e) => {
+            e.stopPropagation();
+            onTest();
+          }}
+        >
+          <Wifi className="size-3.5" />
+          测试
+        </Button>
+        <Button
+          type="button"
+          variant={active ? "secondary" : "ghost"}
+          size="sm"
+          className={cn("h-7 px-2", active && "border-background/20 bg-background/10 text-background hover:bg-background/15 hover:text-background")}
+          onClick={(e) => {
+            e.stopPropagation();
+            onEdit();
+          }}
+        >
+          <Settings className="size-3.5" />
+          编辑
+        </Button>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className={cn("h-7 px-2 text-destructive hover:text-destructive", active && "hover:bg-background/15")}
+          disabled={deletePending}
+          onClick={(e) => {
+            e.stopPropagation();
+            onDelete();
+          }}
+        >
+          <Trash2 className="size-3.5" />
+          删除
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 export function Shell() {
   const router = useRouter();
   const utils = trpc.useUtils();
@@ -243,6 +366,12 @@ export function Shell() {
     setConnectionDialogOpen(true);
   };
 
+  const selectConnection = (id: number) => {
+    setSelectedId(id);
+    setActiveTab("groups");
+    setShowAppSettings(false);
+  };
+
   const handleDelete = async (id: number) => {
     if (!confirm("确定删除此连接？该操作无法撤销。")) return;
     try {
@@ -269,12 +398,35 @@ export function Shell() {
     }
   };
 
+  const renderConnectionCard = (connection: ConnectionItem, compact = false) => (
+    <ConnectionCard
+      key={connection.id}
+      connection={connection}
+      compact={compact}
+      active={selectedId === connection.id}
+      result={testResult[connection.id]}
+      testPending={testConnection.isPending}
+      deletePending={deleteConnection.isPending}
+      onSelect={() => selectConnection(connection.id)}
+      onTest={() => handleTest(connection.id)}
+      onEdit={() =>
+        openEditConnection({
+          id: connection.id,
+          name: connection.name,
+          baseUrl: connection.baseUrl,
+          syncMode: connection.syncMode,
+        })
+      }
+      onDelete={() => handleDelete(connection.id)}
+    />
+  );
+
   return (
-    <div className="app-shell flex h-screen min-h-0 overflow-hidden bg-background text-foreground">
-      <aside className="flex w-[312px] shrink-0 flex-col border-r border-border/80 bg-background/78 shadow-[20px_0_70px_hsl(0_0%_0%/0.28)] backdrop-blur-2xl">
+    <div className="app-shell flex h-dvh min-h-0 flex-col overflow-hidden bg-background text-foreground md:flex-row">
+      <aside className="hidden w-[312px] shrink-0 flex-col border-r border-border/80 bg-background/92 md:flex">
         <div className="border-b border-border/75 px-5 py-4">
           <div className="flex items-center gap-3">
-            <div className="flex size-10 items-center justify-center rounded-md border border-primary/25 bg-primary/12 text-primary shadow-[0_1px_0_hsl(0_0%_100%/0.08)_inset]">
+            <div className="flex size-10 items-center justify-center rounded-md border border-border bg-foreground text-background">
               <Code2 className="size-5" />
             </div>
             <div className="min-w-0">
@@ -282,8 +434,8 @@ export function Shell() {
               <p className="truncate text-xs text-muted-foreground">Sub2API control plane</p>
             </div>
           </div>
-          <div className="mt-4 flex items-center gap-2 rounded-md border border-border/70 bg-secondary/35 px-3 py-2 text-xs text-muted-foreground">
-            <Layers3 className="size-3.5 text-primary" />
+          <div className="mt-4 flex items-center gap-2 rounded-md border border-border/70 bg-muted px-3 py-2 text-xs text-muted-foreground">
+            <Layers3 className="size-3.5 text-foreground" />
             <span className="truncate">统一管理倍率、账号与同步任务</span>
           </div>
         </div>
@@ -300,160 +452,95 @@ export function Shell() {
 
         <div className="flex-1 overflow-auto px-3 pb-3">
           {connectionsLoading ? (
-            <div className="rounded-md border border-dashed border-border/80 bg-secondary/25 p-4 text-sm text-muted-foreground">连接加载中...</div>
+            <div className="rounded-md border border-dashed border-border/80 bg-muted p-4 text-sm text-muted-foreground">连接加载中...</div>
           ) : connections?.length === 0 ? (
-            <div className="rounded-md border border-dashed border-border/80 bg-secondary/25 p-4 text-sm text-muted-foreground">
+            <div className="rounded-md border border-dashed border-border/80 bg-muted p-4 text-sm text-muted-foreground">
               还没有连接。添加一个 Sub2API 站点后即可开始管理倍率和同步。
             </div>
           ) : (
-            <div className="space-y-2">
-              {connections?.map((connection) => {
-                const result = testResult[connection.id];
-                const active = selectedId === connection.id;
-
-                return (
-                  <div
-                    key={connection.id}
-                    role="button"
-                    tabIndex={0}
-                    className={cn(
-                      "group w-full cursor-pointer rounded-md border p-3 text-left transition-all focus:outline-none focus:ring-2 focus:ring-ring/70 focus:ring-offset-2 focus:ring-offset-background",
-                      active
-                        ? "border-primary/40 bg-primary/12 shadow-[0_1px_0_hsl(0_0%_100%/0.06)_inset]"
-                        : "border-transparent bg-secondary/25 hover:border-border/80 hover:bg-secondary/45",
-                    )}
-                    onClick={() => {
-                      setSelectedId(connection.id);
-                      setActiveTab("groups");
-                      setShowAppSettings(false);
-                    }}
-                    onKeyDown={(event) => {
-                      if (event.key !== "Enter" && event.key !== " ") return;
-                      event.preventDefault();
-                      setSelectedId(connection.id);
-                      setActiveTab("groups");
-                      setShowAppSettings(false);
-                    }}
-                  >
-                    <div className="flex items-start gap-3">
-                      <div className={cn("mt-0.5 rounded-md border p-2", active ? "border-primary/30 bg-primary text-primary-foreground" : "border-border/70 bg-background/45 text-muted-foreground")}>
-                        <Link2 className="size-4" />
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2">
-                          <p className="truncate text-sm font-semibold">{connection.name}</p>
-                          {connection.syncMode === "auto" ? (
-                            <span className="rounded-md border border-primary/20 bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary">Auto</span>
-                          ) : null}
-                        </div>
-                        <p className="mt-0.5 truncate text-xs text-muted-foreground">{connection.baseUrl}</p>
-                      </div>
-                      {result ? (
-                        <span title={result.message} className="mt-1 shrink-0">
-                          {result.ok ? <CheckCircle2 className="size-4 text-emerald-300" /> : <XCircle className="size-4 text-destructive" />}
-                        </span>
-                      ) : null}
-                    </div>
-                    <div className="mt-3 flex items-center gap-1 opacity-100 sm:opacity-0 sm:transition-opacity sm:group-hover:opacity-100">
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        className="h-7 px-2"
-                        disabled={testConnection.isPending}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleTest(connection.id);
-                        }}
-                      >
-                        <Wifi className="size-3.5" />
-                        测试
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        className="h-7 px-2"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          openEditConnection({
-                            id: connection.id,
-                            name: connection.name,
-                            baseUrl: connection.baseUrl,
-                            syncMode: connection.syncMode,
-                          });
-                        }}
-                      >
-                        <Settings className="size-3.5" />
-                        编辑
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        className="h-7 px-2 text-destructive hover:text-destructive"
-                        disabled={deleteConnection.isPending}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDelete(connection.id);
-                        }}
-                      >
-                        <Trash2 className="size-3.5" />
-                        删除
-                      </Button>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+            <div className="space-y-2">{connections?.map((connection) => renderConnectionCard(connection))}</div>
           )}
         </div>
       </aside>
 
-      <main className="flex min-w-0 flex-1 flex-col">
-        <header className="flex h-[72px] shrink-0 items-center justify-between border-b border-border/75 bg-background/66 px-6 backdrop-blur-2xl">
-          <div className="min-w-0">
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              {showAppSettings ? (
-                <>
-                  <Settings className="size-4 text-primary" />
-                  应用设置
-                </>
-              ) : selected ? (
-                <>
-                  <ActiveIcon className="size-4 text-primary" />
-                  <span className="truncate text-foreground">{selected.name}</span>
-                  <span className="text-muted-foreground/60">/</span>
-                  <span>{activeTabMeta.label}</span>
-                </>
-              ) : (
-                "等待连接"
-              )}
+      <main className="flex min-h-0 min-w-0 flex-1 flex-col">
+        <header className="shrink-0 border-b border-border/75 bg-background/92 px-4 py-3 backdrop-blur-xl sm:px-5 md:px-6">
+          <div className="flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                {showAppSettings ? (
+                  <>
+                    <Settings className="size-4 text-foreground" />
+                    应用设置
+                  </>
+                ) : selected ? (
+                  <>
+                    <ActiveIcon className="size-4 text-foreground" />
+                    <span className="truncate text-foreground">{selected.name}</span>
+                    <span className="text-muted-foreground/60">/</span>
+                    <span className="truncate">{activeTabMeta.label}</span>
+                  </>
+                ) : (
+                  "等待连接"
+                )}
+              </div>
+              <p className="mt-1 truncate text-xs text-muted-foreground">
+                {showAppSettings ? "管理 Worker 与管理员账号" : selected ? activeTabMeta.description : "添加一个连接后开始管理"}
+              </p>
             </div>
-            <p className="mt-1 truncate text-xs text-muted-foreground">
-              {showAppSettings ? "管理 Worker 与管理员账号" : selected ? activeTabMeta.description : "添加一个连接后开始管理"}
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="hidden max-w-[220px] truncate rounded-md border border-border/70 bg-secondary/30 px-2.5 py-1.5 text-xs text-muted-foreground sm:inline">
-              {session?.email}
-            </span>
-            <Button variant={showAppSettings ? "secondary" : "ghost"} size="icon" onClick={() => setShowAppSettings((value) => !value)} title="应用设置">
-              {showAppSettings ? <ChevronLeft className="size-4" /> : <Settings className="size-4" />}
-            </Button>
-            <Button variant="ghost" size="icon" onClick={() => logout.mutate()} disabled={logout.isPending} title="退出登录">
-              <LogOut className="size-4" />
-            </Button>
+            <div className="flex shrink-0 items-center gap-2">
+              <span className="hidden max-w-[220px] truncate rounded-md border border-border/70 bg-muted px-2.5 py-1.5 text-xs text-muted-foreground lg:inline">
+                {session?.email}
+              </span>
+              <ThemeToggle />
+              <Button variant={showAppSettings ? "secondary" : "ghost"} size="icon" onClick={() => setShowAppSettings((value) => !value)} title="应用设置">
+                {showAppSettings ? <ChevronLeft className="size-4" /> : <Settings className="size-4" />}
+              </Button>
+              <Button variant="ghost" size="icon" onClick={() => logout.mutate()} disabled={logout.isPending} title="退出登录">
+                <LogOut className="size-4" />
+              </Button>
+            </div>
           </div>
         </header>
 
+        <div className="shrink-0 border-b border-border/75 bg-background/92 md:hidden">
+          <div className="flex items-center justify-between gap-3 px-4 py-3">
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
+                <div className="flex size-8 items-center justify-center rounded-md border border-border bg-foreground text-background">
+                  <Code2 className="size-4" />
+                </div>
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-semibold">S2A Manager</p>
+                  <p className="truncate text-xs text-muted-foreground">{connections?.length ?? 0} 个站点</p>
+                </div>
+              </div>
+            </div>
+            <Button size="sm" variant="outline" onClick={openCreateConnection}>
+              <Plus className="size-4" />
+              添加
+            </Button>
+          </div>
+          <div className="overflow-x-auto px-4 pb-3">
+            {connectionsLoading ? (
+              <div className="rounded-md border border-dashed border-border/80 bg-muted p-3 text-sm text-muted-foreground">连接加载中...</div>
+            ) : connections?.length === 0 ? (
+              <div className="rounded-md border border-dashed border-border/80 bg-muted p-3 text-sm text-muted-foreground">
+                添加一个 Sub2API 站点后即可开始管理。
+              </div>
+            ) : (
+              <div className="flex gap-2">{connections?.map((connection) => renderConnectionCard(connection, true))}</div>
+            )}
+          </div>
+        </div>
+
         {showAppSettings ? (
-          <div className="min-h-0 flex-1 overflow-auto p-6">
+          <div className="min-h-0 flex-1 overflow-auto p-4 sm:p-5 md:p-6">
             <AppSettingsPage />
           </div>
         ) : selected ? (
           <>
-            <nav className="shrink-0 border-b border-border/70 bg-background/38 px-5 backdrop-blur-xl">
+            <nav className="shrink-0 border-b border-border/70 bg-background/92 px-3 backdrop-blur-xl sm:px-5">
               <div className="flex gap-1 overflow-x-auto py-2">
                 {tabs.map((tab) => {
                   const Icon = tab.icon;
@@ -462,10 +549,10 @@ export function Shell() {
                       key={tab.id}
                       type="button"
                       className={cn(
-                        "flex h-10 shrink-0 items-center gap-2 rounded-md border border-transparent px-3 text-sm font-medium transition-colors",
+                        "flex h-10 shrink-0 items-center gap-2 rounded-md border px-3 text-sm font-medium transition-colors",
                         activeTab === tab.id
-                          ? "border-foreground/10 bg-foreground text-background shadow-[0_1px_0_hsl(0_0%_100%/0.18)_inset]"
-                          : "text-muted-foreground hover:border-border/70 hover:bg-secondary/50 hover:text-foreground",
+                          ? "border-foreground bg-foreground text-background"
+                          : "border-transparent text-muted-foreground hover:border-border/70 hover:bg-accent hover:text-foreground",
                       )}
                       onClick={() => setActiveTab(tab.id)}
                     >
@@ -476,7 +563,7 @@ export function Shell() {
                 })}
               </div>
             </nav>
-            <section className="min-h-0 flex-1 overflow-auto p-6">
+            <section className="min-h-0 flex-1 overflow-auto p-4 sm:p-5 md:p-6">
               {activeTab === "groups" ? <GroupsPanel connectionId={selected.id} /> : null}
               {activeTab === "service-status" ? <ServiceStatusPanel connectionId={selected.id} /> : null}
               {activeTab === "bl-sync" ? <BlSyncPanel connectionId={selected.id} /> : null}
@@ -488,9 +575,9 @@ export function Shell() {
             </section>
           </>
         ) : (
-          <div className="flex min-h-0 flex-1 items-center justify-center p-6">
-            <div className="codex-panel max-w-md rounded-md p-8 text-center">
-              <div className="mx-auto flex size-12 items-center justify-center rounded-md border border-primary/25 bg-primary/12 text-primary">
+          <div className="flex min-h-0 flex-1 items-center justify-center p-4 sm:p-6">
+            <div className="codex-panel max-w-md rounded-md p-6 text-center sm:p-8">
+              <div className="mx-auto flex size-12 items-center justify-center rounded-md border border-border bg-foreground text-background">
                 <Plus className="size-5" />
               </div>
               <h2 className="mt-4 text-lg font-semibold">添加第一个 Sub2API 连接</h2>

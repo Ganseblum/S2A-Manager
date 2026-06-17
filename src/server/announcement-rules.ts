@@ -88,6 +88,11 @@ async function logAnnouncementRule(db: AnnouncementRuleDb, connectionId: number,
   }
 }
 
+function ruleMatchesTargetGroup(rule: { targetGroupIds?: number[] | null }, groupId: number) {
+  const targetGroupIds = rule.targetGroupIds ?? [];
+  return targetGroupIds.length === 0 || targetGroupIds.includes(groupId);
+}
+
 export async function publishRateChangeAnnouncements(input: {
   db: AnnouncementRuleDb;
   client: Sub2ApiAdminClient;
@@ -123,8 +128,6 @@ export async function publishRateChangeAnnouncements(input: {
 
   let published = 0;
   for (const rule of rules) {
-    const title = renderAnnouncementTemplate(rule.titleTemplate, context).trim();
-    const content = renderAnnouncementTemplate(rule.contentTemplate, context).trim();
     const detail = {
       ruleId: rule.id,
       ruleName: rule.name,
@@ -132,11 +135,17 @@ export async function publishRateChangeAnnouncements(input: {
       groupName: context.groupName,
       oldRate: context.oldRate,
       newRate: context.newRate,
-      title,
+      targetGroupIds: rule.targetGroupIds,
     };
 
+    if (!ruleMatchesTargetGroup(rule, context.groupId)) continue;
+
+    const title = renderAnnouncementTemplate(rule.titleTemplate, context).trim();
+    const content = renderAnnouncementTemplate(rule.contentTemplate, context).trim();
+    const publishDetail = { ...detail, title };
+
     if (!title || !content) {
-      await logAnnouncementRule(db, context.connectionId, detail, "failed", "Rendered title or content is empty");
+      await logAnnouncementRule(db, context.connectionId, publishDetail, "failed", "Rendered title or content is empty");
       continue;
     }
 
@@ -148,10 +157,10 @@ export async function publishRateChangeAnnouncements(input: {
         notify_mode: rule.notifyMode,
       });
       published += 1;
-      await logAnnouncementRule(db, context.connectionId, detail, "success");
+      await logAnnouncementRule(db, context.connectionId, publishDetail, "success");
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      await logAnnouncementRule(db, context.connectionId, detail, "failed", message);
+      await logAnnouncementRule(db, context.connectionId, publishDetail, "failed", message);
     }
   }
 
