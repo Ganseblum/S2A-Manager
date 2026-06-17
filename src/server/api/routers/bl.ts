@@ -22,6 +22,7 @@ import { deleteBlCollectionSite, getBlCollectionSite, listBlCollectionSites, sav
 import { applyBoundRateRulesForConnection } from "@/server/bl-rate-sync";
 import { publishRateChangeAnnouncements } from "@/server/announcement-rules";
 import { normalizeRateMultiplier } from "@/server/rates";
+import { getAccountId, getAccountName, getAccountRate } from "@/server/account-utils";
 
 const rateMultiplierInput = z.number().finite().gt(0).max(100_000);
 
@@ -46,9 +47,9 @@ async function safeLogSync(connectionId: number, action: string, target: string,
   }
 }
 
-async function applyRulesAfterCollection(connectionId: number, sourceSiteIds: number[]) {
+async function applyRulesAfterCollection(connectionId: number, sourceSiteIds: number[], changedRunIds?: number[]) {
   try {
-    return await applyBoundRateRulesForConnection({ db, connectionId, sourceSiteIds });
+    return await applyBoundRateRulesForConnection({ db, connectionId, sourceSiteIds, changedRunIds });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     await safeLogSync(connectionId, "auto_bl_apply_bound_rules_after_collection", `connection:${connectionId}`, { sourceSiteIds }, "failed", message);
@@ -75,28 +76,6 @@ function changeTime(change: BlChange) {
 
 function newestChangesFirst(changes: BlChange[]) {
   return [...changes].sort((left, right) => changeTime(right) - changeTime(left));
-}
-
-function toFiniteNumber(value: unknown) {
-  if (value === null || value === undefined || value === "") return null;
-  const numeric = Number(value);
-  return Number.isFinite(numeric) ? numeric : null;
-}
-
-function getAccountLabel(account: unknown, accountId: number) {
-  if (!account || typeof account !== "object") return `#${accountId}`;
-  const row = account as { name?: unknown; username?: unknown };
-  const name = typeof row.name === "string" && row.name.trim()
-    ? row.name.trim()
-    : typeof row.username === "string" && row.username.trim()
-      ? row.username.trim()
-      : "";
-  return name || `#${accountId}`;
-}
-
-function getAccountRate(account: unknown) {
-  if (!account || typeof account !== "object") return null;
-  return toFiniteNumber((account as { rate_multiplier?: unknown }).rate_multiplier);
 }
 
 // ---- Bl Router ----
@@ -148,7 +127,7 @@ export const blRouter = createTRPCRouter({
       if (!site || site.connectionId !== input.connectionId) throw new Error("采集源站不存在");
       const result = await collectBlCollectionSite(site);
       if (!result.ok) return result;
-      const ruleSync = await applyRulesAfterCollection(input.connectionId, [site.id]);
+      const ruleSync = await applyRulesAfterCollection(input.connectionId, [site.id], result.runId ? [result.runId] : undefined);
       return { ...result, ruleSync };
     }),
   collectAll: protectedProcedure
@@ -156,7 +135,8 @@ export const blRouter = createTRPCRouter({
     .mutation(async ({ input }) => {
       const results = await collectDueBlCollectionSites({ connectionId: input.connectionId, forceAll: true });
       const successfulSiteIds = results.filter((row) => row.result.ok).map((row) => row.site.id);
-      const ruleSync = successfulSiteIds.length > 0 ? await applyRulesAfterCollection(input.connectionId, successfulSiteIds) : null;
+      const successfulRunIds = results.filter((row) => row.result.ok && row.result.runId).map((row) => row.result.runId as number);
+      const ruleSync = successfulSiteIds.length > 0 ? await applyRulesAfterCollection(input.connectionId, successfulSiteIds, successfulRunIds) : null;
       return { ok: true, total: results.length, success: results.filter((row) => row.result.ok).length, results, ruleSync };
     }),
   platforms: protectedProcedure
@@ -309,10 +289,7 @@ export const blRouter = createTRPCRouter({
     .mutation(async ({ input }) => {
       const [blClient, targetClient] = await Promise.all([Promise.resolve(getBlClient(input.connectionId)), getSub2APIClient(input.connectionId)]);
       const accounts = await targetClient.listAccounts();
-      const targetAccount = accounts.find((account) => {
-        if (!account || typeof account !== "object") return false;
-        return Number((account as { id?: unknown }).id) === input.accountId;
-      });
+      const targetAccount = accounts.find((account) => getAccountId(account) === input.accountId);
       if (!targetAccount) throw new Error("账号不存在");
 
       const currentRate = getAccountRate(targetAccount) ?? 1;
@@ -331,7 +308,7 @@ export const blRouter = createTRPCRouter({
       });
       const detail = {
         accountId: input.accountId,
-        accountName: getAccountLabel(targetAccount, input.accountId),
+        accountName: getAccountName(targetAccount, input.accountId),
         rule,
         currentRate,
         rateMultiplier,

@@ -2,6 +2,7 @@ import type { PrismaClient, UpstreamMonitorRule } from "@prisma/client";
 import { decrypt } from "@/server/crypto";
 import { Sub2ApiAdminClient } from "@/server/clients/sub2api-admin";
 import { writeSyncLog } from "@/server/sync-logs";
+import { getAccountId } from "@/server/account-utils";
 
 type MonitorDb = Pick<PrismaClient, "connection" | "upstreamMonitorRule" | "upstreamMonitorResult">;
 
@@ -38,11 +39,6 @@ function truncate(value: string, max = 2_000) {
   return value.length > max ? `${value.slice(0, max)}...` : value;
 }
 
-function normalizeAccountId(value: unknown) {
-  const numeric = typeof value === "number" ? value : Number(value);
-  return Number.isInteger(numeric) && numeric > 0 ? numeric : null;
-}
-
 function accountLabel(account: RemoteAccount | null | undefined, fallbackId: number) {
   const name = account?.name ?? account?.username;
   return name?.trim() || `#${fallbackId}`;
@@ -63,7 +59,7 @@ async function runWithConcurrency<T>(items: T[], concurrency: number, worker: (i
 function findAccount(accounts: unknown[], accountId: number) {
   return accounts.find((account) => {
     if (!account || typeof account !== "object") return false;
-    return normalizeAccountId((account as RemoteAccount).id) === accountId;
+    return getAccountId(account) === accountId;
   }) as RemoteAccount | undefined;
 }
 

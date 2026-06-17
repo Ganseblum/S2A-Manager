@@ -19,6 +19,7 @@ export type FileSyncLog = {
   id: string;
   connectionId: number;
   action: string;
+  actionLabel?: string | null;
   target: string | null;
   level: LogLevel;
   detail: string | null;
@@ -489,6 +490,7 @@ function normalizeLogRow(raw: unknown, id: string): FileSyncLog | null {
     id: typeof row.id === "string" && row.id ? row.id : id,
     connectionId,
     action,
+    actionLabel: typeof row.actionLabel === "string" && row.actionLabel ? row.actionLabel : logActionLabel(action),
     target: typeof row.target === "string" && row.target ? row.target : null,
     level: normalizeLogLevel(row.level),
     detail: typeof row.detail === "string" && row.detail ? row.detail : null,
@@ -523,6 +525,7 @@ function matchLog(row: FileSyncLog, input: LogQueryInput) {
   if (input.search) {
     const query = input.search.toLowerCase();
     return includesAction(row.action, query)
+      || includesText(row.actionLabel, query)
       || includesText(row.target, query)
       || includesText(row.detail, query)
       || includesText(row.error, query);
@@ -624,6 +627,7 @@ export async function writeSyncLog(
     id: `${createdAt.toISOString()}-${process.pid}-${Math.random().toString(36).slice(2, 10)}`,
     connectionId: input.connectionId,
     action: input.action,
+    actionLabel: logActionLabel(input.action),
     target: input.target || null,
     level,
     detail: serializeDetail(input.detail),

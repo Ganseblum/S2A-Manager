@@ -362,7 +362,7 @@ export function LogsPanel() {
                   <TableCell className="text-xs text-muted-foreground">{formatDateTime(log.createdAt)}</TableCell>
                   <TableCell>{levelBadge(log.level)}</TableCell>
                   <TableCell>{statusBadge(log.status)}</TableCell>
-                  <TableCell className="text-xs" title={log.action}>{logActionLabel(log.action)}</TableCell>
+                  <TableCell className="text-xs" title={log.action}>{log.actionLabel || logActionLabel(log.action)}</TableCell>
                   <TableCell className="font-mono text-xs">{log.target || "-"}</TableCell>
                   <TableCell className="max-w-[520px]">
                     {log.error ? (

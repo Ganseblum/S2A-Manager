@@ -6,6 +6,7 @@ import { decrypt } from "@/server/crypto";
 import { Sub2ApiAdminClient } from "@/server/clients/sub2api-admin";
 import { normalizeRateMultiplier } from "@/server/rates";
 import { fetchAccountBalances } from "@/server/account-balance";
+import { getAccountId } from "@/server/account-utils";
 
 async function getClient(connectionId: number) {
   const conn = await db.connection.findUniqueOrThrow({ where: { id: connectionId } });
@@ -135,7 +136,7 @@ export const accountsRouter = createTRPCRouter({
 
       try {
         const account = await client.createAccount(payload);
-        const accountId = typeof account === "object" && account && "id" in account ? Number((account as { id?: unknown }).id) : null;
+        const accountId = getAccountId(account);
         if (input.schedulable === false && accountId && Number.isInteger(accountId) && accountId > 0) {
           await client.setSchedulable(accountId, false);
         }

@@ -5,6 +5,7 @@ import { decrypt } from "@/server/crypto";
 import { Sub2ApiAdminClient } from "@/server/clients/sub2api-admin";
 import { executeUpstreamMonitorRule } from "@/server/upstream-monitor";
 import { getWorkerRuntimeSettings } from "@/server/worker-settings";
+import { getAccountId } from "@/server/account-utils";
 
 type AccountRow = {
   id?: number | string | null;
@@ -54,11 +55,6 @@ function normalizeAccountList(response: unknown): AccountRow[] {
   return [];
 }
 
-function normalizeAccountId(value: unknown) {
-  const numeric = typeof value === "number" ? value : Number(value);
-  return Number.isInteger(numeric) && numeric > 0 ? numeric : null;
-}
-
 function accountLabel(account: AccountRow | null | undefined, fallbackId: number) {
   const name = account?.name ?? account?.username;
   return name?.trim() || `#${fallbackId}`;
@@ -94,14 +90,14 @@ export const upstreamMonitorRouter = createTRPCRouter({
       const accounts = normalizeAccountList(accountsPayload);
       const accountById = new Map<number, AccountRow>();
       for (const account of accounts) {
-        const accountId = normalizeAccountId(account.id);
+        const accountId = getAccountId(account);
         if (accountId) accountById.set(accountId, account);
       }
       const rulesByAccount = new Map(rules.map((rule) => [rule.accountId, rule]));
 
       const accountRows = accounts
         .map((account) => {
-          const accountId = normalizeAccountId(account.id);
+          const accountId = getAccountId(account);
           if (!accountId) return null;
           const rule = rulesByAccount.get(accountId) ?? null;
           return {
@@ -204,7 +200,7 @@ export const upstreamMonitorRouter = createTRPCRouter({
       const client = getClient(connection);
       let account: AccountRow | null = null;
       try {
-        account = normalizeAccountList(await client.listAccounts()).find((row) => normalizeAccountId(row.id) === input.accountId) ?? null;
+        account = normalizeAccountList(await client.listAccounts()).find((row) => getAccountId(row) === input.accountId) ?? null;
       } catch {
         account = null;
       }

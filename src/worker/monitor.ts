@@ -125,16 +125,27 @@ async function runCycle() {
     const failed = collected.length - success;
     console.log(`[worker] Rate collection checked ${collected.length} due source(s), success=${success}, failed=${failed}`);
     const successfulSiteIdsByConnection = new Map<number, number[]>();
+    const successfulRunIdsByConnection = new Map<number, number[]>();
     for (const row of collected) {
       if (!row.result.ok) continue;
       const current = successfulSiteIdsByConnection.get(row.site.connectionId) ?? [];
       current.push(row.site.id);
       successfulSiteIdsByConnection.set(row.site.connectionId, current);
+      if (row.result.runId) {
+        const currentRunIds = successfulRunIdsByConnection.get(row.site.connectionId) ?? [];
+        currentRunIds.push(row.result.runId);
+        successfulRunIdsByConnection.set(row.site.connectionId, currentRunIds);
+      }
     }
     for (const [connectionId, sourceSiteIds] of successfulSiteIdsByConnection) {
       try {
-        const result = await applyBoundRateRulesForConnection({ db, connectionId, sourceSiteIds });
-        console.log(`[worker] Post-collection rules for connection ${connectionId}: groups=${result.summary.appliedGroupRules}, accounts=${result.summary.appliedAccountRules}, failed=${result.summary.failedGroupRules + result.summary.failedAccountRules}`);
+        const result = await applyBoundRateRulesForConnection({
+          db,
+          connectionId,
+          sourceSiteIds,
+          changedRunIds: successfulRunIdsByConnection.get(connectionId),
+        });
+        console.log(`[worker] Post-collection rules for connection ${connectionId}: groups=${result.summary.appliedGroupRules}, accounts=${result.summary.appliedAccountRules}, skipped=${result.summary.skippedGroupRules + result.summary.skippedAccountRules}, failed=${result.summary.failedGroupRules + result.summary.failedAccountRules}`);
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         console.error(`[worker] Post-collection rule application failed for connection ${connectionId}: ${message}`);

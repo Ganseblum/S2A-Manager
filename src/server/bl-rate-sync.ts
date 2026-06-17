@@ -6,8 +6,9 @@ import { decrypt } from "@/server/crypto";
 import { publishRateChangeAnnouncements } from "@/server/announcement-rules";
 import { ratesEqual } from "@/server/rates";
 import { writeSyncLog } from "@/server/sync-logs";
+import { getAccountId, getAccountName, getAccountRate } from "@/server/account-utils";
 
-type RateRuleDb = Pick<Prisma.TransactionClient, "blSourceBinding" | "blGroupRateRule" | "blAccountRateRule" | "connection" | "announcementRule">;
+type RateRuleDb = Pick<Prisma.TransactionClient, "blSourceBinding" | "blGroupRateRule" | "blAccountRateRule" | "connection" | "announcementRule" | "blCollectedChange">;
 type LockableRateSyncDb = RateRuleDb & Pick<PrismaClient, "$transaction">;
 
 type LoggableDb = Pick<PrismaClient, "connection">;
@@ -21,36 +22,18 @@ export type BoundRateSyncSummary = {
   failedAccountRules: number;
 };
 
+export type ChangedBlSource = {
+  sourceSiteId: number;
+  sourceGroupId: string;
+};
+
 function sourceKey(siteId: number, groupId: string) {
   return `${siteId}:${groupId}`;
 }
 
-function toFiniteNumber(value: unknown) {
-  if (value === null || value === undefined || value === "") return null;
-  const numeric = Number(value);
-  return Number.isFinite(numeric) ? numeric : null;
-}
-
-function getAccountId(account: unknown) {
-  if (!account || typeof account !== "object") return null;
-  const numeric = Number((account as { id?: unknown }).id);
-  return Number.isInteger(numeric) && numeric > 0 ? numeric : null;
-}
-
-function getAccountName(account: unknown, accountId: number) {
-  if (!account || typeof account !== "object") return `#${accountId}`;
-  const row = account as { name?: unknown; username?: unknown };
-  const name = typeof row.name === "string" && row.name.trim()
-    ? row.name.trim()
-    : typeof row.username === "string" && row.username.trim()
-      ? row.username.trim()
-      : "";
-  return name || `#${accountId}`;
-}
-
-function getAccountRate(account: unknown) {
-  if (!account || typeof account !== "object") return null;
-  return toFiniteNumber((account as { rate_multiplier?: unknown }).rate_multiplier);
+function changedSourceSet(changedSources?: ChangedBlSource[]) {
+  if (!changedSources?.length) return null;
+  return new Set(changedSources.map((source) => sourceKey(source.sourceSiteId, source.sourceGroupId)));
 }
 
 function formatSourceLabel(sources: Array<{ sourceSiteName?: string | null; sourceGroupId: string; sourceGroupName?: string | null }>) {
@@ -283,6 +266,28 @@ async function accountRuleTargets(input: {
   return { allBindings, rules };
 }
 
+async function changedSourcesForRuns(db: RateRuleDb, connectionId: number, runIds?: number[]) {
+  const ids = Array.from(new Set((runIds ?? []).filter((id) => Number.isInteger(id) && id > 0)));
+  if (ids.length === 0) return undefined;
+
+  const rows = await db.blCollectedChange.findMany({
+    where: {
+      connectionId,
+      runId: { in: ids },
+      entityType: "group",
+      field: "rateMultiplier",
+    },
+    select: { siteId: true, entityKey: true },
+  });
+
+  const unique = new Map<string, ChangedBlSource>();
+  for (const row of rows) {
+    const key = sourceKey(row.siteId, row.entityKey);
+    unique.set(key, { sourceSiteId: row.siteId, sourceGroupId: row.entityKey });
+  }
+  return Array.from(unique.values());
+}
+
 async function unavailableAccountRuleSummary(input: {
   db: RateRuleDb;
   connectionId: number;
@@ -313,6 +318,7 @@ async function applyBoundAccountRules(input: {
   s2Client: Sub2ApiAdminClient;
   accounts: unknown[];
   sourceSiteIds?: number[];
+  changedSources?: ChangedBlSource[];
 }): Promise<BoundRateSyncSummary> {
   const { allBindings, rules } = await accountRuleTargets(input);
   if (rules.length === 0) {
@@ -327,6 +333,7 @@ async function applyBoundAccountRules(input: {
     if (accountId) accountsById.set(accountId, account);
   }
   const ratesBySource = new Map(rates.map((rate) => [sourceKey(rate.site_id, rate.group_id), rate]));
+  const changedSourceKeys = changedSourceSet(input.changedSources);
   const bindingsByAccount = new Map<number, typeof allBindings>();
   for (const binding of allBindings) {
     const current = bindingsByAccount.get(binding.targetId) ?? [];
@@ -372,6 +379,7 @@ async function applyBoundAccountRules(input: {
         .map((account) => ({ account, accountId: getAccountId(account) }))
         .find((row) => row.accountId === accountId)?.account ?? target;
       const latestRate = getAccountRate(latestTarget) ?? currentRate;
+      const sourceChanged = Boolean(changedSourceKeys && bindings.some((binding) => changedSourceKeys.has(sourceKey(binding.sourceSiteId, binding.sourceGroupId))));
       const detail = {
         targetAccountId: accountId,
         targetAccountName: accountName,
@@ -379,9 +387,17 @@ async function applyBoundAccountRules(input: {
         sources,
         currentRate: latestRate,
         rateMultiplier,
+        sourceChanged,
       };
 
-      if (sameRate(latestRate, rateMultiplier)) {
+      if (sameRate(latestRate, rateMultiplier) && !sourceChanged) {
+        if (changedSourceKeys && changedSourceKeys.size > 0) {
+          await logSync(input.db, input.connectionId, "auto_bl_bound_account_rule", `account:${accountId}`, {
+            ...detail,
+            skipped: true,
+            reason: "账号倍率已是规则计算结果，且本次采集变更源未命中该账号绑定源",
+          }, "success");
+        }
         summary.skippedAccountRules += 1;
         continue;
       }
@@ -413,6 +429,7 @@ export async function applyBoundRateRules(input: {
   accounts?: unknown[];
   accountsError?: string | null;
   sourceSiteIds?: number[];
+  changedSources?: ChangedBlSource[];
   groupsError?: string | null;
 }) {
   const groupResult = input.groupsError
@@ -439,6 +456,7 @@ export async function applyBoundRateRules(input: {
         s2Client: input.s2Client,
         accounts: input.accounts,
         sourceSiteIds: input.sourceSiteIds,
+        changedSources: input.changedSources,
       })
     : input.accountsError
       ? await unavailableAccountRuleSummary({
@@ -466,6 +484,8 @@ export async function applyBoundRateRulesForConnection(input: {
   db: LockableRateSyncDb;
   connectionId: number;
   sourceSiteIds?: number[];
+  changedRunIds?: number[];
+  changedSources?: ChangedBlSource[];
 }) {
   return withConnectionLock(input.db, input.connectionId, async (tx) => {
     const conn = await tx.connection.findUnique({ where: { id: input.connectionId } });
@@ -495,6 +515,7 @@ export async function applyBoundRateRulesForConnection(input: {
     } catch (error) {
       accountsError = error instanceof Error ? error.message : String(error);
     }
+    const changedSources = input.changedSources ?? await changedSourcesForRuns(tx, conn.id, input.changedRunIds);
     const result = await applyBoundRateRules({
       db: tx,
       connectionId: conn.id,
@@ -506,6 +527,7 @@ export async function applyBoundRateRulesForConnection(input: {
       accounts,
       accountsError,
       sourceSiteIds: input.sourceSiteIds,
+      changedSources,
     });
 
     return {
