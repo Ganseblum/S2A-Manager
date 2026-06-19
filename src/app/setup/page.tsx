@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Code2 } from "lucide-react";
+import { ProjectPromoLinks } from "@/components/app/project-promo-links";
 import { ThemeToggle } from "@/components/app/theme-toggle";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
@@ -37,7 +38,7 @@ export default function SetupPage() {
               <Code2 className="size-5" />
             </div>
             <CardTitle className="text-2xl">初始设置</CardTitle>
-            <CardDescription>创建首个管理员账号，随后进入管理台</CardDescription>
+            <CardDescription>创建首个管理员账号，随后进入管理台。源码见 langrenjh-alt/S2A-Manager，SUB2API 中转站推荐 z30.top。</CardDescription>
           </CardHeader>
           <CardContent>
             <form
@@ -71,6 +72,7 @@ export default function SetupPage() {
             </form>
           </CardContent>
         </Card>
+        <ProjectPromoLinks stacked className="mt-3" />
       </div>
     </div>
   );

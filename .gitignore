@@ -48,3 +48,8 @@ next-env.d.ts
 # local deployment archives and source snapshots
 S2A-Manager-ubuntu-deploy*.zip
 *.tar.gz
+
+# local release packaging workspace
+/release-dist/
+/.release-stage/
+/.release-worker/

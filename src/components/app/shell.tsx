@@ -30,6 +30,7 @@ import { AppSettingsPage } from "@/components/app/app-settings-page";
 import { BlSyncPanel } from "@/components/app/bl-sync-panel";
 import { GroupsPanel } from "@/components/app/groups-panel";
 import { LogsPanel } from "@/components/app/logs-panel";
+import { ProjectPromoLinks } from "@/components/app/project-promo-links";
 import { ServiceStatusPanel } from "@/components/app/service-status-panel";
 import { SiteSettingsPanel } from "@/components/app/settings-panel";
 import { UpstreamMonitorPanel } from "@/components/app/upstream-monitor-panel";
@@ -438,6 +439,7 @@ export function Shell() {
             <Layers3 className="size-3.5 text-foreground" />
             <span className="truncate">统一管理倍率、账号与同步任务</span>
           </div>
+          <ProjectPromoLinks stacked className="mt-3" />
         </div>
 
         <div className="flex items-center justify-between px-4 py-3">
@@ -521,6 +523,7 @@ export function Shell() {
               添加
             </Button>
           </div>
+          <ProjectPromoLinks className="px-4 pb-3" />
           <div className="overflow-x-auto px-4 pb-3">
             {connectionsLoading ? (
               <div className="rounded-md border border-dashed border-border/80 bg-muted p-3 text-sm text-muted-foreground">连接加载中...</div>
@@ -581,7 +584,8 @@ export function Shell() {
                 <Plus className="size-5" />
               </div>
               <h2 className="mt-4 text-lg font-semibold">添加第一个 Sub2API 连接</h2>
-              <p className="mt-2 text-sm text-muted-foreground">连接后即可管理分组倍率、账号调度、公告和站点设置。</p>
+              <p className="mt-2 text-sm text-muted-foreground">连接后即可管理分组倍率、账号调度、公告和站点设置。可参考官方仓库，也可访问 z30.top 体验 SUB2API 中转服务。</p>
+              <ProjectPromoLinks stacked className="mt-4 text-left" />
               <Button className="mt-5" onClick={openCreateConnection}>
                 <Plus className="size-4" />
                 添加连接

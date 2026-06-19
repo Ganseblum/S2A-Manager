@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Code2 } from "lucide-react";
+import { ProjectPromoLinks } from "@/components/app/project-promo-links";
 import { ThemeToggle } from "@/components/app/theme-toggle";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
@@ -37,7 +38,7 @@ export default function LoginPage() {
               <Code2 className="size-5" />
             </div>
             <CardTitle className="text-2xl">S2A Manager</CardTitle>
-            <CardDescription>登录后管理 Sub2API 连接、倍率和同步任务</CardDescription>
+            <CardDescription>登录后管理 Sub2API 连接、倍率和同步任务。项目仓库 langrenjh-alt/S2A-Manager，SUB2API 中转站推荐 z30.top。</CardDescription>
           </CardHeader>
           <CardContent>
             <form
@@ -63,6 +64,7 @@ export default function LoginPage() {
             </form>
           </CardContent>
         </Card>
+        <ProjectPromoLinks stacked className="mt-3" />
       </div>
     </div>
   );
