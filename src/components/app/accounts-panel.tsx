@@ -220,7 +220,7 @@ const defaultBalanceWebhookTemplate = [
   "余额：{{remaining}} {{unit}}",
   "阈值：{{threshold}} {{unit}}",
   "来源：{{provider}} {{planName}}",
-  "检测时间：{{checkedAt}}",
+  "检测时间（北京时间）：{{checkedAt}}",
 ].join("\n");
 
 function normalizeAccountList(response: unknown): AccountRow[] {

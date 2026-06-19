@@ -45,7 +45,7 @@ const defaultTemplate = [
   "余额：{{remaining}} {{unit}}",
   "阈值：{{threshold}} {{unit}}",
   "来源：{{provider}} {{planName}}",
-  "检测时间：{{checkedAt}}",
+  "检测时间（北京时间）：{{checkedAt}}",
 ].join("\n");
 
 export const defaultAccountBalanceWebhookConfig: AccountBalanceWebhookConfig = {
@@ -208,6 +208,21 @@ function formatNumber(value: number) {
   return value.toFixed(4).replace(/\.?0+$/, "");
 }
 
+function formatBeijingTime(value: string) {
+  const date = new Date(value);
+  if (!Number.isFinite(date.getTime())) return value;
+  return new Intl.DateTimeFormat("zh-CN", {
+    timeZone: "Asia/Shanghai",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+  }).format(date).replace(/\//g, "-");
+}
+
 function renderTemplate(template: string, variables: Record<string, string>) {
   return template.replace(/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g, (_match, key: string) => variables[key] ?? "");
 }
@@ -228,7 +243,8 @@ function buildWebhookPayload(input: {
     unit: input.alert.unit,
     provider: input.alert.provider ?? "",
     planName: input.alert.planName ?? "",
-    checkedAt: input.alert.checkedAt,
+    checkedAt: formatBeijingTime(input.alert.checkedAt),
+    checkedAtIso: input.alert.checkedAt,
   };
   const text = renderTemplate(input.template, variables);
   return {
