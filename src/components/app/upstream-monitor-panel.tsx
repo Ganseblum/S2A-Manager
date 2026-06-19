@@ -79,6 +79,7 @@ type AccountModel = {
 type RowAction = "toggle" | "run" | "resume" | "delete";
 
 const defaultModelValue = "__sub2api_default__";
+const uptimeWindowSize = 60;
 const prioritizedGeminiModels = [
   "gemini-3.1-flash-image",
   "gemini-2.5-flash-image",
@@ -135,6 +136,79 @@ function statusBadge(status?: string | null) {
   if (status === "resumed") return <Badge variant="secondary">已恢复</Badge>;
   if (status === "resume_failed") return <Badge variant="destructive">恢复失败</Badge>;
   return <Badge variant="outline">未检测</Badge>;
+}
+
+function monitorStatusLabel(status?: string | null) {
+  if (status === "success") return "正常";
+  if (status === "failed") return "失败";
+  if (status === "resumed") return "已恢复";
+  if (status === "resume_failed") return "恢复失败";
+  return "无记录";
+}
+
+function timelineBarClass(status?: string | null) {
+  if (status === "success") return "bg-emerald-500";
+  if (status === "failed" || status === "resume_failed") return "bg-red-500";
+  if (status === "resumed") return "bg-amber-500";
+  return "bg-muted";
+}
+
+function resultDate(result: MonitorResult) {
+  const value = result.createdAt ?? result.finishedAt ?? result.startedAt;
+  if (!value) return null;
+  const date = value instanceof Date ? value : new Date(String(value));
+  return Number.isFinite(date.getTime()) ? date : null;
+}
+
+function resultTitle(result: MonitorResult) {
+  const date = resultDate(result);
+  return [
+    monitorStatusLabel(result.status),
+    date ? date.toLocaleString() : null,
+    result.latencyMs ? `${result.latencyMs}ms` : null,
+    result.model,
+    result.message,
+  ].filter(Boolean).join(" · ");
+}
+
+function UptimeTimeline({ row }: { row: MonitorRow }) {
+  const rule = row.rule;
+  const results = (rule?.results ?? []).slice(0, uptimeWindowSize).reverse();
+  const emptyCount = Math.max(0, uptimeWindowSize - results.length);
+  const nextLabel = rule ? (rule.enabled ? `下次 ${formatRelative(rule.nextCheckAt)}` : "已停用") : "未配置";
+
+  return (
+    <div className="w-[320px] max-w-[42vw] min-w-[260px] space-y-1.5">
+      <div className="flex items-center justify-between gap-3 text-[11px] font-medium text-muted-foreground">
+        <span>近 {uptimeWindowSize} 次记录</span>
+        <span className="truncate">{nextLabel}</span>
+      </div>
+      <div
+        className="grid gap-1"
+        style={{ gridTemplateColumns: `repeat(${uptimeWindowSize}, minmax(3px, 1fr))` }}
+        aria-label={`近 ${uptimeWindowSize} 次上游检测记录`}
+      >
+        {Array.from({ length: emptyCount }).map((_, index) => (
+          <span key={`empty-${index}`} className="h-5 rounded-[2px] bg-muted/70" title="暂无记录" />
+        ))}
+        {results.map((result, index) => (
+          <span
+            key={`${result.status}-${result.createdAt ?? result.finishedAt ?? index}-${index}`}
+            className={`h-5 rounded-[2px] ${timelineBarClass(result.status)}`}
+            title={resultTitle(result)}
+          />
+        ))}
+      </div>
+      <div className="flex items-center justify-between text-[10px] font-medium uppercase tracking-normal text-muted-foreground/70">
+        <span>PAST</span>
+        <span>NOW</span>
+      </div>
+      <div className="flex items-center justify-between gap-3 text-xs text-muted-foreground">
+        <span className="font-mono text-foreground">{formatUptime(row.stats.uptimePercent)}</span>
+        <span>{row.stats.success}/{row.stats.windowSize || 0} 通过</span>
+      </div>
+    </div>
+  );
 }
 
 function isPaused(rule: MonitorRule | null) {
@@ -369,7 +443,7 @@ export function UpstreamMonitorPanel({ connectionId }: { connectionId: number })
             <TableHead>类型</TableHead>
             <TableHead>调度</TableHead>
             <TableHead>规则</TableHead>
-            <TableHead>Uptime</TableHead>
+            <TableHead className="min-w-[320px]">Uptime</TableHead>
             <TableHead>最近检测</TableHead>
             <TableHead>暂停</TableHead>
             <TableHead className="w-56">操作</TableHead>
@@ -408,8 +482,11 @@ export function UpstreamMonitorPanel({ connectionId }: { connectionId: number })
                     )}
                   </TableCell>
                   <TableCell>
-                    <div className="font-mono">{formatUptime(row.stats.uptimePercent)}</div>
-                    <div className="text-xs text-muted-foreground">{row.stats.success}/{row.stats.windowSize || 0} 通过</div>
+                    {rule ? (
+                      <UptimeTimeline row={row} />
+                    ) : (
+                      <div className="text-xs text-muted-foreground">配置规则后显示近 {uptimeWindowSize} 次记录</div>
+                    )}
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2">{statusBadge(rule?.lastStatus)}</div>

@@ -60,10 +60,13 @@ async function applyRulesAfterCollection(connectionId: number, sourceSiteIds: nu
       summary: {
         appliedGroupRules: 0,
         appliedAccountRules: 0,
+        appliedPriorityRules: 0,
         skippedGroupRules: 0,
         skippedAccountRules: 0,
+        skippedPriorityRules: 0,
         failedGroupRules: 1,
         failedAccountRules: 1,
+        failedPriorityRules: 1,
       },
     };
   }

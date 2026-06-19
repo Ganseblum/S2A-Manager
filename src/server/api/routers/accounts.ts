@@ -8,6 +8,7 @@ import { normalizeRateMultiplier } from "@/server/rates";
 import { fetchAccountBalances } from "@/server/account-balance";
 import { getAccountId } from "@/server/account-utils";
 import { getSetting, setSetting } from "@/server/settings";
+import { applyAccountPriorityRule, readAccountPriorityRule, saveAccountPriorityRule } from "@/server/account-priority-rule";
 
 async function getClient(connectionId: number) {
   const conn = await db.connection.findUniqueOrThrow({ where: { id: connectionId } });
@@ -162,6 +163,34 @@ export const accountsRouter = createTRPCRouter({
   balanceThresholds: protectedProcedure
     .input(z.object({ connectionId: z.number().int().positive() }))
     .query(async ({ input }) => readBalanceThresholds(input.connectionId)),
+  priorityRule: protectedProcedure
+    .input(z.object({ connectionId: z.number().int().positive() }))
+    .query(async ({ input }) => readAccountPriorityRule(input.connectionId)),
+  savePriorityRule: protectedProcedure
+    .input(z.object({
+      connectionId: z.number().int().positive(),
+      enabled: z.boolean(),
+      targetGroupIds: z.array(z.number().int().positive()).max(500),
+    }))
+    .mutation(async ({ input }) => {
+      const rule = await saveAccountPriorityRule(input.connectionId, {
+        enabled: input.enabled,
+        targetGroupIds: input.targetGroupIds,
+      });
+      await safeLogSync(input.connectionId, "save_account_priority_rule", `connection:${input.connectionId}`, rule, "success");
+      return rule;
+    }),
+  applyPriorityRule: protectedProcedure
+    .input(z.object({ connectionId: z.number().int().positive() }))
+    .mutation(async ({ input }) => {
+      const client = await getClient(input.connectionId);
+      return applyAccountPriorityRule({
+        db,
+        connectionId: input.connectionId,
+        s2Client: client,
+        action: "apply_account_priority_rule",
+      });
+    }),
   saveBalanceThreshold: protectedProcedure
     .input(z.object({
       connectionId: z.number().int().positive(),

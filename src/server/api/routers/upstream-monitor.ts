@@ -82,7 +82,7 @@ export const upstreamMonitorRouter = createTRPCRouter({
         client.listAccounts(),
         db.upstreamMonitorRule.findMany({
           where: { connectionId: input.connectionId },
-          include: { results: { orderBy: { createdAt: "desc" }, take: 50 } },
+          include: { results: { orderBy: { createdAt: "desc" }, take: 60 } },
           orderBy: [{ accountId: "asc" }],
         }),
       ]);

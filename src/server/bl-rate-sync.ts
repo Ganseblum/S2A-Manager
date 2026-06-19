@@ -7,6 +7,7 @@ import { publishRateChangeAnnouncements } from "@/server/announcement-rules";
 import { ratesEqual } from "@/server/rates";
 import { writeSyncLog } from "@/server/sync-logs";
 import { getAccountId, getAccountName, getAccountRate } from "@/server/account-utils";
+import { applyAccountPriorityRule } from "@/server/account-priority-rule";
 
 type RateRuleDb = Pick<Prisma.TransactionClient, "blSourceBinding" | "blGroupRateRule" | "blAccountRateRule" | "connection" | "announcementRule" | "blCollectedChange" | "blCollectionSite" | "blCollectionRun" | "blCollectedGroupRate">;
 type LockableRateSyncDb = RateRuleDb & Pick<PrismaClient, "$transaction">;
@@ -16,10 +17,13 @@ type LoggableDb = Pick<PrismaClient, "connection">;
 export type BoundRateSyncSummary = {
   appliedGroupRules: number;
   appliedAccountRules: number;
+  appliedPriorityRules: number;
   skippedGroupRules: number;
   skippedAccountRules: number;
+  skippedPriorityRules: number;
   failedGroupRules: number;
   failedAccountRules: number;
+  failedPriorityRules: number;
 };
 
 export type ChangedBlSource = {
@@ -78,10 +82,13 @@ function emptySummary(): BoundRateSyncSummary {
   return {
     appliedGroupRules: 0,
     appliedAccountRules: 0,
+    appliedPriorityRules: 0,
     skippedGroupRules: 0,
     skippedAccountRules: 0,
+    skippedPriorityRules: 0,
     failedGroupRules: 0,
     failedAccountRules: 0,
+    failedPriorityRules: 0,
   };
 }
 
@@ -620,6 +627,62 @@ async function applyBoundAccountRules(input: {
   return summary;
 }
 
+async function applyBoundAccountPriorityRule(input: {
+  db: RateRuleDb;
+  connectionId: number;
+  s2Client: Sub2ApiAdminClient;
+  groups: Sub2ApiGroup[];
+  accounts?: unknown[];
+  refreshAccounts: boolean;
+}) {
+  const summary = emptySummary();
+
+  try {
+    const accounts = input.refreshAccounts ? undefined : input.accounts;
+    const result = await applyAccountPriorityRule({
+      db: input.db,
+      connectionId: input.connectionId,
+      s2Client: input.s2Client,
+      groups: input.groups,
+      accounts,
+      action: "auto_account_priority_rule",
+    });
+
+    if (!result.enabled) return summary;
+    summary.appliedPriorityRules = result.updated;
+    summary.skippedPriorityRules = result.unchanged + result.skippedAccounts;
+    summary.failedPriorityRules = result.failed;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    await logSync(
+      input.db,
+      input.connectionId,
+      "auto_account_priority_rule",
+      `connection:${input.connectionId}`,
+      { refreshAccounts: input.refreshAccounts },
+      "failed",
+      message,
+    );
+    summary.failedPriorityRules = 1;
+  }
+
+  return summary;
+}
+
+function mergeSummaries(...summaries: BoundRateSyncSummary[]): BoundRateSyncSummary {
+  return summaries.reduce((acc, summary) => ({
+    appliedGroupRules: acc.appliedGroupRules + summary.appliedGroupRules,
+    appliedAccountRules: acc.appliedAccountRules + summary.appliedAccountRules,
+    appliedPriorityRules: acc.appliedPriorityRules + summary.appliedPriorityRules,
+    skippedGroupRules: acc.skippedGroupRules + summary.skippedGroupRules,
+    skippedAccountRules: acc.skippedAccountRules + summary.skippedAccountRules,
+    skippedPriorityRules: acc.skippedPriorityRules + summary.skippedPriorityRules,
+    failedGroupRules: acc.failedGroupRules + summary.failedGroupRules,
+    failedAccountRules: acc.failedAccountRules + summary.failedAccountRules,
+    failedPriorityRules: acc.failedPriorityRules + summary.failedPriorityRules,
+  }), emptySummary());
+}
+
 export async function applyBoundRateRules(input: {
   db: RateRuleDb;
   connectionId: number;
@@ -667,17 +730,18 @@ export async function applyBoundRateRules(input: {
           sourceSiteIds: input.sourceSiteIds,
         })
       : emptySummary();
+  const prioritySummary = await applyBoundAccountPriorityRule({
+    db: input.db,
+    connectionId: input.connectionId,
+    s2Client: input.s2Client,
+    groups: input.groups,
+    accounts: input.accounts,
+    refreshAccounts: accountSummary.appliedAccountRules > 0,
+  });
 
   return {
     boundGroupIds: groupResult.boundGroupIds,
-    summary: {
-      appliedGroupRules: groupResult.summary.appliedGroupRules,
-      appliedAccountRules: accountSummary.appliedAccountRules,
-      skippedGroupRules: groupResult.summary.skippedGroupRules,
-      skippedAccountRules: accountSummary.skippedAccountRules,
-      failedGroupRules: groupResult.summary.failedGroupRules,
-      failedAccountRules: accountSummary.failedAccountRules,
-    },
+    summary: mergeSummaries(groupResult.summary, accountSummary, prioritySummary),
   };
 }
 
@@ -737,7 +801,7 @@ export async function applyBoundRateRulesForConnection(input: {
     });
 
     return {
-      ok: result.summary.failedGroupRules === 0 && result.summary.failedAccountRules === 0,
+      ok: result.summary.failedGroupRules === 0 && result.summary.failedAccountRules === 0 && result.summary.failedPriorityRules === 0,
       skipped: false,
       message: "rate rules applied",
       ...result,

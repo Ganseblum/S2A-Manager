@@ -145,7 +145,7 @@ async function runCycle() {
           sourceSiteIds,
           changedRunIds: successfulRunIdsByConnection.get(connectionId),
         });
-        console.log(`[worker] Post-collection rules for connection ${connectionId}: groups=${result.summary.appliedGroupRules}, accounts=${result.summary.appliedAccountRules}, skipped=${result.summary.skippedGroupRules + result.summary.skippedAccountRules}, failed=${result.summary.failedGroupRules + result.summary.failedAccountRules}`);
+        console.log(`[worker] Post-collection rules for connection ${connectionId}: groups=${result.summary.appliedGroupRules}, accounts=${result.summary.appliedAccountRules}, priorities=${result.summary.appliedPriorityRules}, skipped=${result.summary.skippedGroupRules + result.summary.skippedAccountRules + result.summary.skippedPriorityRules}, failed=${result.summary.failedGroupRules + result.summary.failedAccountRules + result.summary.failedPriorityRules}`);
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         console.error(`[worker] Post-collection rule application failed for connection ${connectionId}: ${message}`);

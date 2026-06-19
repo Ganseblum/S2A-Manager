@@ -4,8 +4,13 @@ export type RemoteAccountLike = {
   accountId?: number | string | null;
   name?: string | null;
   username?: string | null;
+  priority?: number | string | null;
   rate_multiplier?: number | string | null;
   rateMultiplier?: number | string | null;
+  group_id?: number | string | null;
+  group_ids?: Array<number | string | null> | null;
+  groups?: Array<{ id?: number | string | null } | null> | null;
+  account_groups?: Array<{ group_id?: number | string | null; groupId?: number | string | null; group?: { id?: number | string | null } | null } | null> | null;
 };
 
 export function normalizeAccountId(value: unknown) {
@@ -40,4 +45,38 @@ export function getAccountRate(account: unknown) {
   if (!account || typeof account !== "object") return null;
   const row = account as RemoteAccountLike;
   return toFiniteNumber(row.rate_multiplier) ?? toFiniteNumber(row.rateMultiplier);
+}
+
+export function getAccountPriority(account: unknown) {
+  if (!account || typeof account !== "object") return null;
+  const row = account as RemoteAccountLike;
+  const numeric = toFiniteNumber(row.priority);
+  return numeric === null ? null : Math.trunc(numeric);
+}
+
+export function getAccountGroupIds(account: unknown) {
+  if (!account || typeof account !== "object") return [];
+  const row = account as RemoteAccountLike;
+  const ids: number[] = [];
+  const pushId = (value: unknown) => {
+    const id = normalizeAccountId(value);
+    if (id) ids.push(id);
+  };
+
+  if (Array.isArray(row.group_ids)) {
+    for (const id of row.group_ids) pushId(id);
+  }
+
+  if (Array.isArray(row.groups)) {
+    for (const group of row.groups) pushId(group?.id);
+  }
+
+  if (Array.isArray(row.account_groups)) {
+    for (const accountGroup of row.account_groups) {
+      pushId(accountGroup?.group_id ?? accountGroup?.groupId ?? accountGroup?.group?.id);
+    }
+  }
+
+  pushId(row.group_id);
+  return Array.from(new Set(ids));
 }

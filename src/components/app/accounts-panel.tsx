@@ -4,7 +4,7 @@ import { memo, useCallback, useEffect, useMemo, useState } from "react";
 import { AlertTriangle, CirclePlay, Loader2, Pencil, Play, Plus, Power, RefreshCw, RotateCcw, Save, Trash2 } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -56,6 +56,7 @@ type AccountRow = {
   group_name?: string | null;
   group_ids?: number[] | null;
   groups?: GroupRow[] | null;
+  account_groups?: Array<{ group_id?: number | string | null; groupId?: number | string | null; group?: GroupRow | null } | null> | null;
   credentials?: Record<string, unknown> | null;
   credentials_status?: Record<string, boolean> | null;
   extra?: Record<string, unknown> | null;
@@ -257,6 +258,13 @@ function getAccountGroupIds(row: AccountRow) {
   if (Array.isArray(row.groups)) {
     for (const group of row.groups) {
       const normalized = normalizeGroupId(group?.id);
+      if (normalized) ids.push(normalized);
+    }
+  }
+
+  if (Array.isArray(row.account_groups)) {
+    for (const accountGroup of row.account_groups) {
+      const normalized = normalizeGroupId(accountGroup?.group_id ?? accountGroup?.groupId ?? accountGroup?.group?.id);
       if (normalized) ids.push(normalized);
     }
   }
@@ -628,6 +636,7 @@ const AccountTableRow = memo(function AccountTableRow({
         <BlSourceBadges bindings={bindings} loading={bindingsLoading} />
       </TableCell>
       <TableCell className="font-mono">{formatRate(row.rate_multiplier ?? 1)}</TableCell>
+      <TableCell className="font-mono">{row.priority ?? "-"}</TableCell>
       <TableCell className="max-w-[220px] truncate text-sm">{ruleSummary(rule)}</TableCell>
       <TableCell>{renderBalance()}</TableCell>
       <TableCell>{schedulable ? <Badge variant="success">已启用</Badge> : <Badge variant="secondary">已禁用</Badge>}</TableCell>
@@ -697,6 +706,10 @@ export function AccountsPanel({ connectionId }: { connectionId: number }) {
   const [testingAccountIds, setTestingAccountIds] = useState<number[]>([]);
   const [balanceThresholdInputs, setBalanceThresholdInputs] = useState<Record<number, string>>({});
   const [savingBalanceThresholdIds, setSavingBalanceThresholdIds] = useState<number[]>([]);
+  const [priorityRuleEnabled, setPriorityRuleEnabled] = useState(false);
+  const [priorityRuleGroupIds, setPriorityRuleGroupIds] = useState<number[]>([]);
+  const [priorityRuleSearch, setPriorityRuleSearch] = useState("");
+  const [priorityRuleDirty, setPriorityRuleDirty] = useState(false);
 
   const accountList = useMemo(() => normalizeAccountList(accounts), [accounts]);
   const accountIds = useMemo(() => accountList.map((account) => account.id).filter((id) => Number.isInteger(id) && id > 0), [accountList]);
@@ -705,6 +718,10 @@ export function AccountsPanel({ connectionId }: { connectionId: number }) {
     { enabled: accountIds.length > 0, staleTime: 60_000, refetchOnWindowFocus: false, retry: 0 },
   );
   const balanceThresholdsQuery = trpc.accounts.balanceThresholds.useQuery(
+    { connectionId },
+    { staleTime: 30_000, refetchOnWindowFocus: false },
+  );
+  const priorityRuleQuery = trpc.accounts.priorityRule.useQuery(
     { connectionId },
     { staleTime: 30_000, refetchOnWindowFocus: false },
   );
@@ -778,6 +795,37 @@ export function AccountsPanel({ connectionId }: { connectionId: number }) {
     }
     return [...selected, ...others.slice(0, Math.max(180 - selected.length, 0))];
   }, [filteredGroupList, selectedGroupIdSet]);
+  const priorityRuleGroupIdSet = useMemo(() => new Set(priorityRuleGroupIds), [priorityRuleGroupIds]);
+  const priorityRuleAccountCount = useMemo(() => {
+    if (priorityRuleGroupIdSet.size === 0) return 0;
+    return accountList.filter((account) => getAccountGroupIds(account).some((groupId) => priorityRuleGroupIdSet.has(groupId))).length;
+  }, [accountList, priorityRuleGroupIdSet]);
+  const filteredPriorityRuleGroupList = useMemo(() => {
+    const query = priorityRuleSearch.trim().toLowerCase();
+    if (!query) return groupList;
+    return groupList.filter((group) => {
+      const haystack = [
+        group.id,
+        group.name,
+        group.platform,
+        group.type,
+        group.subscription_type,
+      ].filter(Boolean).join(" ").toLowerCase();
+      return haystack.includes(query);
+    });
+  }, [groupList, priorityRuleSearch]);
+  const visiblePriorityRuleGroupList = useMemo(() => {
+    const selected: GroupRow[] = [];
+    const others: GroupRow[] = [];
+    for (const group of filteredPriorityRuleGroupList) {
+      if (priorityRuleGroupIdSet.has(group.id)) {
+        selected.push(group);
+      } else {
+        others.push(group);
+      }
+    }
+    return [...selected, ...others.slice(0, Math.max(140 - selected.length, 0))];
+  }, [filteredPriorityRuleGroupList, priorityRuleGroupIdSet]);
 
   useEffect(() => {
     if (!editingAccount || formMode !== "edit") return;
@@ -803,6 +851,13 @@ export function AccountsPanel({ connectionId }: { connectionId: number }) {
     setBalanceThresholdInputs(next);
   }, [balanceThresholdsQuery.data]);
 
+  useEffect(() => {
+    const rule = priorityRuleQuery.data;
+    if (!rule || priorityRuleDirty) return;
+    setPriorityRuleEnabled(rule.enabled === true);
+    setPriorityRuleGroupIds(uniqueNumbers(Array.isArray(rule.targetGroupIds) ? rule.targetGroupIds : []));
+  }, [priorityRuleDirty, priorityRuleQuery.data]);
+
   const createAccount = trpc.accounts.create.useMutation();
   const updateAccount = trpc.accounts.update.useMutation();
   const removeAccount = trpc.accounts.deleteAccount.useMutation();
@@ -815,6 +870,8 @@ export function AccountsPanel({ connectionId }: { connectionId: number }) {
   const saveBindings = trpc.bl.saveBindings.useMutation();
   const saveRule = trpc.bl.saveAccountRateRule.useMutation();
   const applyRule = trpc.bl.applyAccountRateRule.useMutation();
+  const savePriorityRule = trpc.accounts.savePriorityRule.useMutation();
+  const applyPriorityRule = trpc.accounts.applyPriorityRule.useMutation();
   const setSchedulable = trpc.accounts.setSchedulable.useMutation({
     onSuccess: async (_data, variables) => {
       await refetch();
@@ -837,7 +894,8 @@ export function AccountsPanel({ connectionId }: { connectionId: number }) {
     onError: (e) => showToast({ title: "刷新账号凭证失败", description: e.message, variant: "error" }),
   });
 
-  const isSaving = createAccount.isPending || updateAccount.isPending || saveBindings.isPending || saveRule.isPending || applyRule.isPending;
+  const isPriorityRuleSaving = savePriorityRule.isPending || applyPriorityRule.isPending;
+  const isSaving = createAccount.isPending || updateAccount.isPending || saveBindings.isPending || saveRule.isPending || applyRule.isPending || isPriorityRuleSaving;
   const testingAccountIdSet = useMemo(() => new Set(testingAccountIds), [testingAccountIds]);
   const dialogAvailableModels = useMemo(() => {
     const models = Array.isArray(testAccountModels.data)
@@ -920,6 +978,67 @@ export function AccountsPanel({ connectionId }: { connectionId: number }) {
     setDirty((current) => ({ ...current, sourceBindings: true }));
     setSourceBindings(Array.from(new Map(next.map((binding) => [blSourceKey(binding), binding])).values()));
   }, []);
+
+  const togglePriorityRuleGroup = useCallback((groupId: number, checked: boolean) => {
+    setPriorityRuleDirty(true);
+    setPriorityRuleGroupIds((current) => {
+      if (checked) return current.includes(groupId) ? current : [...current, groupId];
+      return current.filter((id) => id !== groupId);
+    });
+  }, []);
+
+  const handleSavePriorityRule = useCallback(async () => {
+    try {
+      const targetGroupIds = uniqueNumbers(priorityRuleGroupIds);
+      if (priorityRuleEnabled && targetGroupIds.length === 0) {
+        throw new Error("启用规则时至少选择一个 Sub2API 分组");
+      }
+      const saved = await savePriorityRule.mutateAsync({
+        connectionId,
+        enabled: priorityRuleEnabled,
+        targetGroupIds,
+      });
+      setPriorityRuleDirty(false);
+      setPriorityRuleEnabled(saved.enabled);
+      setPriorityRuleGroupIds(uniqueNumbers(saved.targetGroupIds));
+      await Promise.all([
+        priorityRuleQuery.refetch(),
+        utils.sync.logs.invalidate(),
+      ]);
+      showToast({ title: "调度优先级规则已保存", variant: "success" });
+      return saved;
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      showToast({ title: "保存调度优先级规则失败", description: message, variant: "error" });
+      return null;
+    }
+  }, [connectionId, priorityRuleEnabled, priorityRuleGroupIds, priorityRuleQuery, savePriorityRule, showToast, utils.sync.logs]);
+
+  const handleApplyPriorityRule = useCallback(async () => {
+    const saved = await handleSavePriorityRule();
+    if (!saved) return;
+    if (!saved.enabled) {
+      showToast({ title: "调度优先级规则未启用", variant: "error" });
+      return;
+    }
+
+    try {
+      const result = await applyPriorityRule.mutateAsync({ connectionId });
+      await Promise.all([
+        refetch(),
+        utils.accounts.priorityRule.invalidate({ connectionId }),
+        utils.sync.logs.invalidate(),
+      ]);
+      showToast({
+        title: result.failed > 0 ? "调度优先级部分应用失败" : "调度优先级已应用",
+        description: `匹配 ${result.matchedAccounts} 个账号，更新 ${result.updated} 个，跳过 ${result.unchanged + result.skippedAccounts} 个`,
+        variant: result.failed > 0 ? "error" : "success",
+      });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      showToast({ title: "应用调度优先级规则失败", description: message, variant: "error" });
+    }
+  }, [applyPriorityRule, connectionId, handleSavePriorityRule, refetch, showToast, utils.accounts.priorityRule, utils.sync.logs]);
 
   const closeEditor = () => {
     setFormMode(null);
@@ -1097,6 +1216,7 @@ export function AccountsPanel({ connectionId }: { connectionId: number }) {
       return;
     }
     await utils.bl.bindings.invalidate({ connectionId, targetType: "account" });
+    await priorityRuleQuery.refetch();
     await balancesQuery.refetch();
     showToast({ title: "账号列表已刷新", variant: "success" });
   };
@@ -1226,6 +1346,102 @@ export function AccountsPanel({ connectionId }: { connectionId: number }) {
       ) : null}
 
       <Card>
+        <CardHeader className="gap-3 pb-3">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+            <div className="space-y-1">
+              <CardTitle>调度优先级规则</CardTitle>
+              <CardDescription>按所选分组内账号倍率从低到高写入 Sub2API 账号优先级；相同倍率使用相同优先级。</CardDescription>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground">{priorityRuleEnabled ? "已启用" : "已停用"}</span>
+              <Switch
+                checked={priorityRuleEnabled}
+                onCheckedChange={(checked) => {
+                  setPriorityRuleDirty(true);
+                  setPriorityRuleEnabled(checked);
+                }}
+                disabled={isPriorityRuleSaving || priorityRuleQuery.isLoading}
+              />
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_280px]">
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label>目标 Sub2API 分组</Label>
+                <span className="text-xs text-muted-foreground">{groupsLoading ? "加载中" : `${priorityRuleGroupIds.length} / ${groupList.length}`}</span>
+              </div>
+              <Input
+                value={priorityRuleSearch}
+                onChange={(event) => setPriorityRuleSearch(event.target.value)}
+                placeholder="搜索分组名称、ID、平台或类型"
+                disabled={isPriorityRuleSaving}
+              />
+              <div className="max-h-52 overflow-y-auto rounded-md border border-border/70">
+                {groupList.length === 0 ? (
+                  <div className="p-4 text-sm text-muted-foreground">暂无可选分组</div>
+                ) : visiblePriorityRuleGroupList.length === 0 ? (
+                  <div className="p-4 text-sm text-muted-foreground">没有匹配的分组</div>
+                ) : (
+                  <div className="divide-y divide-border/60">
+                    {visiblePriorityRuleGroupList.map((group) => {
+                      const checkboxId = `priority-rule-group-${group.id}`;
+                      const checked = priorityRuleGroupIdSet.has(group.id);
+                      return (
+                        <Label key={group.id} htmlFor={checkboxId} className="flex cursor-pointer items-center gap-3 px-4 py-3 text-sm text-foreground">
+                          <Checkbox
+                            id={checkboxId}
+                            checked={checked}
+                            onCheckedChange={(value) => togglePriorityRuleGroup(group.id, value === true)}
+                            disabled={isPriorityRuleSaving}
+                          />
+                          <span className="min-w-0 flex-1">
+                            <span className="block truncate font-medium">{getGroupLabel(group)}</span>
+                            <span className="block truncate text-xs text-muted-foreground">#{group.id}{group.platform ? ` / ${group.platform}` : ""}</span>
+                          </span>
+                          <span className="font-mono text-xs text-muted-foreground">{formatRate(group.rate_multiplier ?? 1)}</span>
+                        </Label>
+                      );
+                    })}
+                    {filteredPriorityRuleGroupList.length > visiblePriorityRuleGroupList.length ? (
+                      <div className="px-4 py-3 text-xs text-muted-foreground">已显示前 140 条，请继续搜索缩小范围。</div>
+                    ) : null}
+                  </div>
+                )}
+              </div>
+            </div>
+            <div className="space-y-3 rounded-md border border-border/70 p-4">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <div className="text-xs text-muted-foreground">命中账号</div>
+                  <div className="mt-1 text-2xl font-semibold">{priorityRuleAccountCount}</div>
+                </div>
+                <div>
+                  <div className="text-xs text-muted-foreground">已选分组</div>
+                  <div className="mt-1 text-2xl font-semibold">{priorityRuleGroupIds.length}</div>
+                </div>
+              </div>
+              <div className="text-xs leading-5 text-muted-foreground">
+                立即应用会先保存当前规则，再按账号当前倍率排序写入优先级 1、2、3。
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Button variant="outline" size="sm" onClick={handleSavePriorityRule} disabled={isPriorityRuleSaving || priorityRuleQuery.isLoading}>
+                  {savePriorityRule.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                  保存规则
+                </Button>
+                <Button size="sm" onClick={handleApplyPriorityRule} disabled={isPriorityRuleSaving || !priorityRuleEnabled || priorityRuleGroupIds.length === 0}>
+                  {applyPriorityRule.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
+                  立即应用
+                </Button>
+              </div>
+              {priorityRuleDirty ? <p className="text-xs text-amber-600 dark:text-amber-300">规则有未保存修改。</p> : null}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
         <CardContent className="p-0">
           <Table>
             <TableHeader>
@@ -1236,6 +1452,7 @@ export function AccountsPanel({ connectionId }: { connectionId: number }) {
                 <TableHead>分组</TableHead>
                 <TableHead>采集源分组 / 当前倍率</TableHead>
                 <TableHead className="w-24">账号倍率</TableHead>
+                <TableHead className="w-20">优先级</TableHead>
                 <TableHead>规则</TableHead>
                 <TableHead className="w-44">账号余额</TableHead>
                 <TableHead>调度状态</TableHead>
@@ -1245,7 +1462,7 @@ export function AccountsPanel({ connectionId }: { connectionId: number }) {
             </TableHeader>
             <TableBody>
               {accountList.length === 0 ? (
-                <TableRow><TableCell colSpan={11} className="text-center text-muted-foreground">暂无账号</TableCell></TableRow>
+                <TableRow><TableCell colSpan={12} className="text-center text-muted-foreground">暂无账号</TableCell></TableRow>
               ) : (
                 accountList.map((row, idx) => {
                   const balance = balancesByAccount.get(row.id);

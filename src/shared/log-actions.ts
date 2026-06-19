@@ -1,4 +1,7 @@
 export const actionLabels: Record<string, string> = {
+  apply_account_priority_rule: "应用账号优先级规则",
+  auto_account_priority_rule: "自动应用账号优先级规则",
+  save_account_priority_rule: "保存账号优先级规则",
   auto_announcement_rule: "自动公告规则",
   auto_bl_apply_bound_rules_after_collection: "采集后应用倍率规则",
   auto_bl_bound_account_rule: "自动应用账号倍率规则",

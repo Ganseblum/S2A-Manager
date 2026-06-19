@@ -211,7 +211,7 @@ function writeStoredPageSize(key: string, value: number) {
 function ruleSyncStatus(result: unknown) {
   const ruleSync = (result as { ruleSync?: { ok?: boolean; summary?: Record<string, unknown> } | null })?.ruleSync;
   const summary = ruleSync?.summary;
-  const failed = Number(summary?.failedGroupRules ?? 0) + Number(summary?.failedAccountRules ?? 0);
+  const failed = Number(summary?.failedGroupRules ?? 0) + Number(summary?.failedAccountRules ?? 0) + Number(summary?.failedPriorityRules ?? 0);
   return { ok: ruleSync?.ok !== false, failed };
 }
 
