@@ -242,17 +242,61 @@ function buildWebhookPayload(input: {
   };
 }
 
+function isEnterpriseWechatWebhook(url: string) {
+  try {
+    const parsed = new URL(url);
+    return parsed.hostname.toLowerCase() === "qyapi.weixin.qq.com"
+      && parsed.pathname.toLowerCase().includes("/cgi-bin/webhook/send");
+  } catch {
+    return false;
+  }
+}
+
+function enterpriseWechatPayload(payload: Record<string, unknown>) {
+  const content = typeof payload.text === "string"
+    ? payload.text
+    : typeof payload.content === "string"
+      ? payload.content
+      : JSON.stringify(payload);
+  return {
+    msgtype: "text",
+    text: {
+      content,
+    },
+  };
+}
+
+function parseJsonObject(raw: string) {
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed as Record<string, unknown> : null;
+  } catch {
+    return null;
+  }
+}
+
+function assertEnterpriseWechatResponse(raw: string) {
+  const parsed = parseJsonObject(raw);
+  if (!parsed || !("errcode" in parsed)) return;
+  const errcode = Number(parsed.errcode);
+  if (errcode === 0) return;
+  const errmsg = typeof parsed.errmsg === "string" ? parsed.errmsg : raw.slice(0, 240);
+  throw new Error(`企业微信 Webhook 返回 errcode=${Number.isFinite(errcode) ? errcode : parsed.errcode}: ${errmsg}`);
+}
+
 async function sendWebhook(url: string, payload: Record<string, unknown>) {
+  const isEnterpriseWechat = isEnterpriseWechatWebhook(url);
   const { status, body } = await requestText({
     method: "POST",
     url,
     headers: { "Content-Type": "application/json; charset=utf-8", Accept: "application/json, text/plain, */*" },
-    body: JSON.stringify(payload),
+    body: JSON.stringify(isEnterpriseWechat ? enterpriseWechatPayload(payload) : payload),
     timeoutMs: 15_000,
   });
   if (status < 200 || status >= 300) {
     throw new Error(`HTTP ${status}: ${body.slice(0, 240)}`);
   }
+  if (isEnterpriseWechat) assertEnterpriseWechatResponse(body);
   return { status, body: body.slice(0, 500) };
 }
 
