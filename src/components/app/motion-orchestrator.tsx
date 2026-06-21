@@ -35,6 +35,9 @@ const unreadyMotionSelectors = motionSelectors
   .map((selector) => `${selector}:not([data-motion-ready])`)
   .join(",");
 
+const hoverSelector = "[data-motion-hover],button,a[href],[role='button']";
+const interactionMotionExcludedSelector = "[role='checkbox'],[role='switch'],input,textarea,select,[data-motion='none'],[data-motion-hover='none']";
+
 function isVisible(element: HTMLElement) {
   if (element.dataset.motion === "dialog" || element.dataset.motion === "toast") return true;
   const rect = element.getBoundingClientRect();
@@ -55,6 +58,17 @@ function fromVars(kind: string | undefined) {
 
 function markReady(element: HTMLElement) {
   element.dataset.motionReady = "true";
+}
+
+function hoverTarget(event: PointerEvent) {
+  const target = (event.target as Element | null)?.closest<HTMLElement>(hoverSelector);
+  if (!target || target.matches(":disabled,[aria-disabled='true']")) return null;
+  if (target.matches(interactionMotionExcludedSelector)) return null;
+  return target;
+}
+
+function movedInsideTarget(event: PointerEvent, target: HTMLElement) {
+  return event.relatedTarget instanceof Node && target.contains(event.relatedTarget);
 }
 
 export function MotionOrchestrator() {
@@ -140,13 +154,13 @@ export function MotionOrchestrator() {
 
     const handlePointerEnter = (event: PointerEvent) => {
       if (reducedMotion) return;
-      const target = (event.target as Element | null)?.closest<HTMLElement>("[data-motion-hover],button,a[href],[role='button']");
-      if (!target || target.matches(":disabled,[aria-disabled='true']")) return;
+      const target = hoverTarget(event);
+      if (!target || movedInsideTarget(event, target)) return;
       const hoverMode = target.dataset.motionHover ?? (target.matches("button,a[href],[role='button']") ? "lift" : "scale");
       gsap.to(target, {
-        y: hoverMode === "lift" ? -3 : -1,
-        scale: hoverMode === "scale" ? 1.015 : 1,
-        duration: 0.22,
+        y: hoverMode === "lift" ? -1.25 : -0.4,
+        scale: hoverMode === "scale" ? 1.006 : 1,
+        duration: 0.32,
         ease: "power2.out",
         overwrite: "auto",
       });
@@ -154,9 +168,9 @@ export function MotionOrchestrator() {
 
     const handlePointerLeave = (event: PointerEvent) => {
       if (reducedMotion) return;
-      const target = (event.target as Element | null)?.closest<HTMLElement>("[data-motion-hover],button,a[href],[role='button']");
-      if (!target) return;
-      gsap.to(target, { y: 0, scale: 1, duration: 0.24, ease: "power2.out", overwrite: "auto", clearProps: "transform" });
+      const target = hoverTarget(event);
+      if (!target || movedInsideTarget(event, target)) return;
+      gsap.to(target, { y: 0, scale: 1, duration: 0.36, ease: "power2.out", overwrite: "auto", clearProps: "transform" });
     };
 
     document.addEventListener("pointerover", handlePointerEnter);
