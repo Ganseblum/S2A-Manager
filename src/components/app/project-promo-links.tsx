@@ -13,18 +13,18 @@ type ProjectPromoLinksProps = {
 
 export function ProjectPromoLinks({ className, stacked = false }: ProjectPromoLinksProps) {
   const linkClass = cn(
-    "inline-flex min-w-0 items-center gap-1.5 rounded-md border border-border/70 bg-background px-2.5 py-1.5 text-xs text-muted-foreground transition-colors hover:border-foreground/40 hover:text-foreground",
+    "inline-flex min-w-0 items-center gap-1.5 rounded-lg border border-white/40 bg-white/[0.28] px-2.5 py-1.5 text-xs text-muted-foreground shadow-[inset_0_1px_0_hsl(0_0%_100%/0.18)] backdrop-blur-xl transition-colors hover:border-primary/35 hover:bg-white/[0.46] hover:text-foreground dark:border-white/10 dark:bg-white/[0.07] dark:hover:bg-white/10",
     stacked ? "w-full" : "max-w-full",
   );
 
   return (
     <div className={cn(stacked ? "space-y-2" : "flex flex-wrap items-center gap-2", className)}>
-      <a href={projectUrl} target="_blank" rel="noreferrer" className={linkClass} title="打开 S2A Manager GitHub 仓库">
+      <a href={projectUrl} target="_blank" rel="noreferrer" className={linkClass} title="打开 S2A Manager GitHub 仓库" data-motion="control" data-motion-hover="lift">
         <Github className="size-3.5 shrink-0" />
         <span className="truncate">GitHub: langrenjh-alt/S2A-Manager</span>
         <ExternalLink className="size-3 shrink-0 opacity-70" />
       </a>
-      <a href={relayUrl} target="_blank" rel="noreferrer" className={linkClass} title="访问 SUB2API 中转站 z30.top">
+      <a href={relayUrl} target="_blank" rel="noreferrer" className={linkClass} title="访问 SUB2API 中转站 z30.top" data-motion="control" data-motion-hover="lift">
         <Globe2 className="size-3.5 shrink-0" />
         <span className="truncate">SUB2API 中转站：z30.top</span>
         <ExternalLink className="size-3 shrink-0 opacity-70" />

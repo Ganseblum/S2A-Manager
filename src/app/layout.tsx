@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { AuthGuard } from "@/components/app/auth-guard";
+import { MotionOrchestrator } from "@/components/app/motion-orchestrator";
 import { ThemeProvider } from "@/components/app/theme-provider";
 import { TrpcProvider } from "@/components/app/trpc-provider";
 import { ToastProvider } from "@/components/ui/toast";
@@ -12,11 +13,12 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="zh-CN" suppressHydrationWarning>
+    <html lang="zh-CN" className="motion-ready" suppressHydrationWarning>
       <body>
         <ThemeProvider>
           <ToastProvider>
             <TrpcProvider>
+              <MotionOrchestrator />
               <AuthGuard>{children}</AuthGuard>
             </TrpcProvider>
           </ToastProvider>

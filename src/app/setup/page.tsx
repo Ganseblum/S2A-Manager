@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Code2 } from "lucide-react";
+import { BrandMark } from "@/components/app/brand-mark";
 import { ProjectPromoLinks } from "@/components/app/project-promo-links";
 import { ThemeToggle } from "@/components/app/theme-toggle";
 import { trpc } from "@/lib/trpc";
@@ -27,16 +27,14 @@ export default function SetupPage() {
   });
 
   return (
-    <div className="auth-screen flex min-h-screen items-center justify-center px-4 py-6 sm:px-6">
-      <div className="w-full max-w-sm">
-        <div className="mb-4 flex justify-end">
+    <div className="auth-screen flex min-h-screen items-center justify-center px-4 py-6 sm:px-6" data-motion="section">
+      <div className="w-full max-w-sm" data-motion="panel">
+        <div className="mb-4 flex justify-end" data-motion="control">
           <ThemeToggle />
         </div>
         <Card className="w-full">
           <CardHeader>
-            <div className="mb-3 flex size-10 items-center justify-center rounded-md border border-border bg-foreground text-background">
-              <Code2 className="size-5" />
-            </div>
+            <BrandMark className="mb-3 size-12 text-slate-900 dark:text-white" />
             <CardTitle className="text-2xl">初始设置</CardTitle>
             <CardDescription>创建首个管理员账号，随后进入管理台。源码见 langrenjh-alt/S2A-Manager，SUB2API 中转站推荐 z30.top。</CardDescription>
           </CardHeader>

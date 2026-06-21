@@ -8,7 +8,6 @@ import {
   CheckCircle2,
   ChevronLeft,
   ClipboardList,
-  Code2,
   Gauge,
   Layers3,
   Link2,
@@ -23,6 +22,7 @@ import {
   Wifi,
   XCircle,
 } from "lucide-react";
+import { BrandMark } from "@/components/app/brand-mark";
 import { ThemeToggle } from "@/components/app/theme-toggle";
 import { AccountsPanel } from "@/components/app/accounts-panel";
 import { AnnouncementsPanel } from "@/components/app/announcements-panel";
@@ -191,7 +191,6 @@ function ConnectionForm({
     </Dialog>
   );
 }
-
 function ConnectionCard({
   connection,
   active,
@@ -220,10 +219,14 @@ function ConnectionCard({
       role="button"
       tabIndex={0}
       className={cn(
-        "group cursor-pointer rounded-md border text-left transition-colors focus:outline-none focus:ring-2 focus:ring-ring/25 focus:ring-offset-2 focus:ring-offset-background",
+        "group cursor-pointer rounded-lg border text-left shadow-[inset_0_1px_0_hsl(0_0%_100%/0.2),0_10px_30px_hsl(217_34%_35%/0.08)] backdrop-blur-xl transition-colors focus:outline-none focus:ring-2 focus:ring-ring/25 focus:ring-offset-2 focus:ring-offset-background dark:shadow-[inset_0_1px_0_hsl(0_0%_100%/0.08),0_12px_34px_hsl(0_0%_0%/0.22)]",
         compact ? "w-[min(82vw,300px)] shrink-0 p-3" : "w-full p-3",
-        active ? "border-foreground bg-foreground text-background" : "border-border/70 bg-card hover:bg-accent",
+        active
+          ? "border-primary/40 bg-primary/[0.92] text-primary-foreground"
+          : "border-white/[0.45] bg-white/[0.38] hover:bg-white/[0.58] dark:border-white/10 dark:bg-white/[0.07] dark:hover:bg-white/10",
       )}
+      data-motion="card"
+      data-motion-hover="lift"
       onClick={onSelect}
       onKeyDown={(event) => {
         if (event.key !== "Enter" && event.key !== " ") return;
@@ -235,7 +238,7 @@ function ConnectionCard({
         <div
           className={cn(
             "mt-0.5 rounded-md border p-2",
-            active ? "border-background/20 bg-background/10 text-background" : "border-border/70 bg-muted text-muted-foreground",
+            active ? "border-white/20 bg-white/[0.14] text-primary-foreground" : "border-white/40 bg-white/[0.34] text-muted-foreground dark:border-white/10 dark:bg-white/[0.08]",
           )}
         >
           <Link2 className="size-4" />
@@ -247,14 +250,14 @@ function ConnectionCard({
               <span
                 className={cn(
                   "rounded-md border px-1.5 py-0.5 text-[10px] font-medium",
-                  active ? "border-background/20 text-background/80" : "border-primary/15 bg-primary/8 text-primary",
+                  active ? "border-white/20 text-primary-foreground/80" : "border-primary/20 bg-primary/10 text-primary",
                 )}
               >
                 Auto
               </span>
             ) : null}
           </div>
-          <p className={cn("mt-0.5 truncate text-xs", active ? "text-background/70" : "text-muted-foreground")}>{connection.baseUrl}</p>
+          <p className={cn("mt-0.5 truncate text-xs", active ? "text-primary-foreground/70" : "text-muted-foreground")}>{connection.baseUrl}</p>
         </div>
         {result ? (
           <span title={result.message} className="mt-1 shrink-0">
@@ -271,7 +274,7 @@ function ConnectionCard({
           type="button"
           variant={active ? "secondary" : "ghost"}
           size="sm"
-          className={cn("h-7 px-2", active && "border-background/20 bg-background/10 text-background hover:bg-background/15 hover:text-background")}
+          className={cn("h-7 px-2", active && "border-white/20 bg-white/[0.12] text-primary-foreground hover:bg-white/[0.18] hover:text-primary-foreground")}
           disabled={testPending}
           onClick={(e) => {
             e.stopPropagation();
@@ -285,7 +288,7 @@ function ConnectionCard({
           type="button"
           variant={active ? "secondary" : "ghost"}
           size="sm"
-          className={cn("h-7 px-2", active && "border-background/20 bg-background/10 text-background hover:bg-background/15 hover:text-background")}
+          className={cn("h-7 px-2", active && "border-white/20 bg-white/[0.12] text-primary-foreground hover:bg-white/[0.18] hover:text-primary-foreground")}
           onClick={(e) => {
             e.stopPropagation();
             onEdit();
@@ -298,7 +301,7 @@ function ConnectionCard({
           type="button"
           variant="ghost"
           size="sm"
-          className={cn("h-7 px-2 text-destructive hover:text-destructive", active && "hover:bg-background/15")}
+          className={cn("h-7 px-2 text-destructive hover:text-destructive", active && "text-primary-foreground hover:bg-white/[0.18] hover:text-primary-foreground")}
           disabled={deletePending}
           onClick={(e) => {
             e.stopPropagation();
@@ -312,7 +315,6 @@ function ConnectionCard({
     </div>
   );
 }
-
 export function Shell() {
   const router = useRouter();
   const utils = trpc.useUtils();
@@ -423,26 +425,29 @@ export function Shell() {
   );
 
   return (
-    <div className="app-shell flex h-dvh min-h-0 flex-col overflow-hidden bg-background text-foreground md:flex-row">
-      <aside className="hidden w-[312px] shrink-0 flex-col border-r border-border/80 bg-background/92 md:flex">
-        <div className="border-b border-border/75 px-5 py-4">
+    <div className="app-shell flex h-dvh min-h-0 flex-col overflow-hidden text-foreground md:flex-row" data-motion="shell">
+      <aside className="hidden w-[312px] shrink-0 flex-col border-r border-white/[0.35] bg-white/[0.36] backdrop-blur-2xl dark:border-white/10 dark:bg-white/[0.06] md:flex" data-motion="sidebar">
+        <div className="border-b border-white/[0.35] px-5 py-4 dark:border-white/10">
+          <div className="mac-window-controls mb-4" aria-hidden="true">
+            <span className="bg-[#ff5f57]" />
+            <span className="bg-[#ffbd2e]" />
+            <span className="bg-[#28c840]" />
+          </div>
           <div className="flex items-center gap-3">
-            <div className="flex size-10 items-center justify-center rounded-md border border-border bg-foreground text-background">
-              <Code2 className="size-5" />
-            </div>
+            <BrandMark className="size-11 text-slate-900 dark:text-white" />
             <div className="min-w-0">
               <h1 className="truncate text-base font-semibold">S2A Manager</h1>
               <p className="truncate text-xs text-muted-foreground">Sub2API control plane</p>
             </div>
           </div>
-          <div className="mt-4 flex items-center gap-2 rounded-md border border-border/70 bg-muted px-3 py-2 text-xs text-muted-foreground">
+          <div className="mt-4 flex items-center gap-2 rounded-lg border border-white/40 bg-white/[0.34] px-3 py-2 text-xs text-muted-foreground backdrop-blur-xl dark:border-white/10 dark:bg-white/[0.08]" data-motion="panel">
             <Layers3 className="size-3.5 text-foreground" />
             <span className="truncate">统一管理倍率、账号与同步任务</span>
           </div>
           <ProjectPromoLinks stacked className="mt-3" />
         </div>
 
-        <div className="flex items-center justify-between px-4 py-3">
+        <div className="flex items-center justify-between px-4 py-3" data-motion="panel">
           <div>
             <p className="text-xs font-medium uppercase text-muted-foreground">Connections</p>
             <p className="text-xs text-muted-foreground/80">{connections?.length ?? 0} 个站点</p>
@@ -454,9 +459,9 @@ export function Shell() {
 
         <div className="flex-1 overflow-auto px-3 pb-3">
           {connectionsLoading ? (
-            <div className="rounded-md border border-dashed border-border/80 bg-muted p-4 text-sm text-muted-foreground">连接加载中...</div>
+            <div className="rounded-lg border border-dashed border-white/[0.45] bg-white/[0.28] p-4 text-sm text-muted-foreground backdrop-blur-xl dark:border-white/10 dark:bg-white/[0.06]" data-motion="panel">连接加载中...</div>
           ) : connections?.length === 0 ? (
-            <div className="rounded-md border border-dashed border-border/80 bg-muted p-4 text-sm text-muted-foreground">
+            <div className="rounded-lg border border-dashed border-white/[0.45] bg-white/[0.28] p-4 text-sm text-muted-foreground backdrop-blur-xl dark:border-white/10 dark:bg-white/[0.06]" data-motion="panel">
               还没有连接。添加一个 Sub2API 站点后即可开始管理倍率和同步。
             </div>
           ) : (
@@ -466,7 +471,7 @@ export function Shell() {
       </aside>
 
       <main className="flex min-h-0 min-w-0 flex-1 flex-col">
-        <header className="shrink-0 border-b border-border/75 bg-background/92 px-4 py-3 backdrop-blur-xl sm:px-5 md:px-6">
+        <header className="shrink-0 border-b border-white/[0.35] bg-white/[0.34] px-4 py-3 backdrop-blur-2xl sm:px-5 md:px-6 dark:border-white/10 dark:bg-white/[0.06]" data-motion="header">
           <div className="flex items-center justify-between gap-3">
             <div className="min-w-0">
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -491,7 +496,7 @@ export function Shell() {
               </p>
             </div>
             <div className="flex shrink-0 items-center gap-2">
-              <span className="hidden max-w-[220px] truncate rounded-md border border-border/70 bg-muted px-2.5 py-1.5 text-xs text-muted-foreground lg:inline">
+              <span className="hidden max-w-[220px] truncate rounded-lg border border-white/40 bg-white/[0.32] px-2.5 py-1.5 text-xs text-muted-foreground backdrop-blur-xl dark:border-white/10 dark:bg-white/[0.08] lg:inline" data-motion="badge">
                 {session?.email}
               </span>
               <ThemeToggle />
@@ -505,13 +510,11 @@ export function Shell() {
           </div>
         </header>
 
-        <div className="shrink-0 border-b border-border/75 bg-background/92 md:hidden">
+        <div className="shrink-0 border-b border-white/[0.35] bg-white/[0.34] backdrop-blur-2xl dark:border-white/10 dark:bg-white/[0.06] md:hidden" data-motion="header">
           <div className="flex items-center justify-between gap-3 px-4 py-3">
             <div className="min-w-0">
               <div className="flex items-center gap-2">
-                <div className="flex size-8 items-center justify-center rounded-md border border-border bg-foreground text-background">
-                  <Code2 className="size-4" />
-                </div>
+                <BrandMark className="size-9 text-slate-900 dark:text-white" />
                 <div className="min-w-0">
                   <p className="truncate text-sm font-semibold">S2A Manager</p>
                   <p className="truncate text-xs text-muted-foreground">{connections?.length ?? 0} 个站点</p>
@@ -526,9 +529,9 @@ export function Shell() {
           <ProjectPromoLinks className="px-4 pb-3" />
           <div className="overflow-x-auto px-4 pb-3">
             {connectionsLoading ? (
-              <div className="rounded-md border border-dashed border-border/80 bg-muted p-3 text-sm text-muted-foreground">连接加载中...</div>
+              <div className="rounded-lg border border-dashed border-white/[0.45] bg-white/[0.28] p-3 text-sm text-muted-foreground backdrop-blur-xl dark:border-white/10 dark:bg-white/[0.06]" data-motion="panel">连接加载中...</div>
             ) : connections?.length === 0 ? (
-              <div className="rounded-md border border-dashed border-border/80 bg-muted p-3 text-sm text-muted-foreground">
+              <div className="rounded-lg border border-dashed border-white/[0.45] bg-white/[0.28] p-3 text-sm text-muted-foreground backdrop-blur-xl dark:border-white/10 dark:bg-white/[0.06]" data-motion="panel">
                 添加一个 Sub2API 站点后即可开始管理。
               </div>
             ) : (
@@ -538,12 +541,12 @@ export function Shell() {
         </div>
 
         {showAppSettings ? (
-          <div className="min-h-0 flex-1 overflow-auto p-4 sm:p-5 md:p-6">
+          <div className="min-h-0 flex-1 overflow-auto p-4 sm:p-5 md:p-6" data-motion="section">
             <AppSettingsPage />
           </div>
         ) : selected ? (
           <>
-            <nav className="shrink-0 border-b border-border/70 bg-background/92 px-3 backdrop-blur-xl sm:px-5">
+            <nav className="shrink-0 border-b border-white/30 bg-white/[0.24] px-3 backdrop-blur-2xl dark:border-white/10 dark:bg-white/[0.05] sm:px-5" data-motion="nav">
               <div className="flex gap-1 overflow-x-auto py-2">
                 {tabs.map((tab) => {
                   const Icon = tab.icon;
@@ -552,11 +555,13 @@ export function Shell() {
                       key={tab.id}
                       type="button"
                       className={cn(
-                        "flex h-10 shrink-0 items-center gap-2 rounded-md border px-3 text-sm font-medium transition-colors",
+                        "flex h-10 shrink-0 items-center gap-2 rounded-lg border px-3 text-sm font-medium shadow-[inset_0_1px_0_hsl(0_0%_100%/0.18)] backdrop-blur-xl transition-colors",
                         activeTab === tab.id
-                          ? "border-foreground bg-foreground text-background"
-                          : "border-transparent text-muted-foreground hover:border-border/70 hover:bg-accent hover:text-foreground",
+                          ? "border-primary/35 bg-primary/90 text-primary-foreground"
+                          : "border-transparent text-muted-foreground hover:border-white/40 hover:bg-white/[0.34] hover:text-foreground dark:hover:border-white/10 dark:hover:bg-white/8",
                       )}
+                      data-motion="control"
+                      data-motion-hover="lift"
                       onClick={() => setActiveTab(tab.id)}
                     >
                       <Icon className="size-4" />
@@ -566,7 +571,7 @@ export function Shell() {
                 })}
               </div>
             </nav>
-            <section className="min-h-0 flex-1 overflow-auto p-4 sm:p-5 md:p-6">
+            <section className="min-h-0 flex-1 overflow-auto p-4 sm:p-5 md:p-6" data-motion="section">
               {activeTab === "groups" ? <GroupsPanel connectionId={selected.id} /> : null}
               {activeTab === "service-status" ? <ServiceStatusPanel connectionId={selected.id} /> : null}
               {activeTab === "bl-sync" ? <BlSyncPanel connectionId={selected.id} /> : null}
@@ -578,11 +583,9 @@ export function Shell() {
             </section>
           </>
         ) : (
-          <div className="flex min-h-0 flex-1 items-center justify-center p-4 sm:p-6">
-            <div className="codex-panel max-w-md rounded-md p-6 text-center sm:p-8">
-              <div className="mx-auto flex size-12 items-center justify-center rounded-md border border-border bg-foreground text-background">
-                <Plus className="size-5" />
-              </div>
+          <div className="flex min-h-0 flex-1 items-center justify-center p-4 sm:p-6" data-motion="section">
+            <div className="codex-panel max-w-md rounded-xl p-6 text-center sm:p-8" data-motion="card" data-motion-hover="lift">
+              <BrandMark className="mx-auto size-14 text-slate-900 dark:text-white" />
               <h2 className="mt-4 text-lg font-semibold">添加第一个 Sub2API 连接</h2>
               <p className="mt-2 text-sm text-muted-foreground">连接后即可管理分组倍率、账号调度、公告和站点设置。可参考官方仓库，也可访问 z30.top 体验 SUB2API 中转服务。</p>
               <ProjectPromoLinks stacked className="mt-4 text-left" />
