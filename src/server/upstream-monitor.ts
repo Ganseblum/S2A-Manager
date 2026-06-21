@@ -190,6 +190,17 @@ export async function restoreMonitorRateSources(input: {
 }) {
   try {
     const result = await restoreAccountMonitorRateSources(input);
+    await input.db.upstreamMonitorRule.updateMany({
+      where: {
+        connectionId: input.connectionId,
+        accountId: input.accountId,
+        pausedUntil: { not: null },
+      },
+      data: {
+        pausedUntil: null,
+        pauseStartedAt: null,
+      },
+    });
     await applyMonitorRateExclusionChanges({ ...input, action: "restore", result });
     return result;
   } catch (error) {

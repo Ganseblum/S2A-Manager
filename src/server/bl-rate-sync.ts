@@ -15,7 +15,7 @@ import {
   type ChangedMonitorRateSource,
 } from "@/server/upstream-monitor-rate-exclusions";
 
-type RateRuleDb = Pick<Prisma.TransactionClient, "blSourceBinding" | "blGroupRateRule" | "blAccountRateRule" | "connection" | "announcementRule" | "blCollectedChange" | "blCollectionSite" | "blCollectionRun" | "blCollectedGroupRate" | "upstreamMonitorRateExclusion">;
+type RateRuleDb = Pick<Prisma.TransactionClient, "blSourceBinding" | "blGroupRateRule" | "blAccountRateRule" | "connection" | "announcementRule" | "blCollectedChange" | "blCollectionSite" | "blCollectionRun" | "blCollectedGroupRate" | "upstreamMonitorRateExclusion" | "upstreamMonitorRule">;
 type LockableRateSyncDb = RateRuleDb & Pick<PrismaClient, "$transaction">;
 
 type LoggableDb = Pick<PrismaClient, "connection">;
