@@ -305,6 +305,7 @@ export const accountsRouter = createTRPCRouter({
         await Promise.all([
           db.blSourceBinding.deleteMany({ where: { connectionId: input.connectionId, targetType: "account", targetId: input.accountId } }),
           db.blAccountRateRule.deleteMany({ where: { connectionId: input.connectionId, accountId: input.accountId } }),
+          db.upstreamMonitorRateExclusion.deleteMany({ where: { connectionId: input.connectionId, accountId: input.accountId } }),
           removeBalanceThreshold(input.connectionId, input.accountId),
         ]);
         await safeLogSync(input.connectionId, "delete_account", `account:${input.accountId}`, { accountId: input.accountId }, "success");

@@ -106,6 +106,7 @@ export const groupsRouter = createTRPCRouter({
         await Promise.all([
           db.blSourceBinding.deleteMany({ where: { connectionId: input.connectionId, targetType: "group", targetId: input.groupId } }),
           db.blGroupRateRule.deleteMany({ where: { connectionId: input.connectionId, groupId: input.groupId } }),
+          db.upstreamMonitorRateExclusion.deleteMany({ where: { connectionId: input.connectionId, groupId: input.groupId } }),
         ]);
         await safeLogSync(input.connectionId, "delete_group", `group:${input.groupId}`, detail, "success");
         return result;

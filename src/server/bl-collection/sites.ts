@@ -5,6 +5,46 @@ import type { BlCollectionSiteInput } from "@/server/bl-collection/types";
 import { db } from "@/server/db";
 import { decrypt, encrypt } from "@/server/crypto";
 
+type SiteCleanupTx = Prisma.TransactionClient;
+
+async function disableRulesWithoutBindings(tx: SiteCleanupTx, connectionId: number) {
+  const [groupTargets, accountTargets] = await Promise.all([
+    tx.blSourceBinding.findMany({
+      where: { connectionId, targetType: "group" },
+      select: { targetId: true },
+      distinct: ["targetId"],
+    }),
+    tx.blSourceBinding.findMany({
+      where: { connectionId, targetType: "account" },
+      select: { targetId: true },
+      distinct: ["targetId"],
+    }),
+  ]);
+  const groupIds = groupTargets.map((row) => row.targetId);
+  const accountIds = accountTargets.map((row) => row.targetId);
+
+  const [groupRules, accountRules] = await Promise.all([
+    tx.blGroupRateRule.updateMany({
+      where: {
+        connectionId,
+        enabled: true,
+        ...(groupIds.length > 0 ? { groupId: { notIn: groupIds } } : {}),
+      },
+      data: { enabled: false },
+    }),
+    tx.blAccountRateRule.updateMany({
+      where: {
+        connectionId,
+        enabled: true,
+        ...(accountIds.length > 0 ? { accountId: { notIn: accountIds } } : {}),
+      },
+      data: { enabled: false },
+    }),
+  ]);
+
+  return groupRules.count + accountRules.count;
+}
+
 export async function listBlCollectionSites(connectionId?: number) {
   return db.blCollectionSite.findMany({
     where: connectionId ? { connectionId } : undefined,
@@ -80,7 +120,30 @@ export async function saveBlCollectionSite(input: BlCollectionSiteInput) {
 }
 
 export async function deleteBlCollectionSite(id: number, connectionId: number) {
-  return db.blCollectionSite.deleteMany({ where: { id, connectionId } });
+  return db.$transaction(async (tx) => {
+    const site = await tx.blCollectionSite.findFirst({
+      where: { id, connectionId },
+      select: { id: true },
+    });
+    if (!site) throw new Error("采集源站不存在");
+
+    const deletedSite = await tx.blCollectionSite.deleteMany({ where: { id, connectionId } });
+    const deletedSourceBindings = await tx.blSourceBinding.deleteMany({
+      where: { connectionId, sourceSiteId: id },
+    });
+    const deletedMonitorRateExclusions = await tx.upstreamMonitorRateExclusion.deleteMany({
+      where: { connectionId, sourceSiteId: id },
+    });
+    const disabledRulesWithoutSources = await disableRulesWithoutBindings(tx, connectionId);
+
+    return {
+      ok: true,
+      deletedSites: deletedSite.count,
+      deletedSourceBindings: deletedSourceBindings.count,
+      deletedMonitorRateExclusions: deletedMonitorRateExclusions.count,
+      disabledRulesWithoutSources,
+    };
+  });
 }
 
 export async function testBlCollectionSite(site: BlCollectionSite) {

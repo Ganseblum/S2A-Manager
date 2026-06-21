@@ -35,6 +35,7 @@ export type InvalidDataCleanupTotals = {
   disabledUpstreamMonitorRules: number;
   disabledAutoSyncConnections: number;
   deletedMissingSourceBindings: number;
+  deletedInvalidMonitorRateExclusions: number;
   updatedSourceBindingNames: number;
   disabledRulesWithoutSources: number;
 };
@@ -96,6 +97,7 @@ const emptyTotals = (): InvalidDataCleanupTotals => ({
   disabledUpstreamMonitorRules: 0,
   disabledAutoSyncConnections: 0,
   deletedMissingSourceBindings: 0,
+  deletedInvalidMonitorRateExclusions: 0,
   updatedSourceBindingNames: 0,
   disabledRulesWithoutSources: 0,
 });
@@ -122,6 +124,14 @@ function uniqueSortedIds(ids: Iterable<unknown>) {
 
 function sourceKey(siteId: number, groupId: string) {
   return `${siteId}:${groupId}`;
+}
+
+function groupSourceKey(groupId: number, siteId: number, sourceGroupId: string) {
+  return `${groupId}:${sourceKey(siteId, sourceGroupId)}`;
+}
+
+function accountSourceKey(accountId: number, siteId: number, sourceGroupId: string) {
+  return `${accountId}:${sourceKey(siteId, sourceGroupId)}`;
 }
 
 function nameChanged(left: string | null | undefined, right: string | null | undefined) {
@@ -270,6 +280,100 @@ async function disableRulesWithoutSources(input: {
   return disabled;
 }
 
+async function cleanupMissingSourceSiteBindings(input: {
+  tx: CleanupTx;
+  connectionId: number;
+  missingSourceBindings: InvalidDataCleanupConnectionResult["missingSourceBindings"];
+}) {
+  const [sites, bindings] = await Promise.all([
+    input.tx.blCollectionSite.findMany({
+      where: { connectionId: input.connectionId },
+      select: { id: true },
+    }),
+    input.tx.blSourceBinding.findMany({
+      where: { connectionId: input.connectionId },
+      select: {
+        id: true,
+        targetType: true,
+        targetId: true,
+        sourceSiteId: true,
+        sourceGroupId: true,
+        sourceGroupName: true,
+      },
+    }),
+  ]);
+  const existingSiteIds = new Set(sites.map((site) => site.id));
+  const missingBindingIds: number[] = [];
+
+  for (const binding of bindings) {
+    if (existingSiteIds.has(binding.sourceSiteId)) continue;
+    missingBindingIds.push(binding.id);
+    input.missingSourceBindings.push({
+      targetType: binding.targetType,
+      targetId: binding.targetId,
+      sourceSiteId: binding.sourceSiteId,
+      sourceGroupId: binding.sourceGroupId,
+      sourceGroupName: binding.sourceGroupName,
+    });
+  }
+
+  if (missingBindingIds.length === 0) return 0;
+  return (await input.tx.blSourceBinding.deleteMany({
+    where: { id: { in: missingBindingIds } },
+  })).count;
+}
+
+async function cleanupInvalidMonitorRateExclusions(input: {
+  tx: CleanupTx;
+  connectionId: number;
+}) {
+  const [sites, groupBindings, accountBindings, exclusions] = await Promise.all([
+    input.tx.blCollectionSite.findMany({
+      where: { connectionId: input.connectionId },
+      select: { id: true },
+    }),
+    input.tx.blSourceBinding.findMany({
+      where: { connectionId: input.connectionId, targetType: "group" },
+      select: { targetId: true, sourceSiteId: true, sourceGroupId: true },
+    }),
+    input.tx.blSourceBinding.findMany({
+      where: { connectionId: input.connectionId, targetType: "account" },
+      select: { targetId: true, sourceSiteId: true, sourceGroupId: true },
+    }),
+    input.tx.upstreamMonitorRateExclusion.findMany({
+      where: { connectionId: input.connectionId },
+      select: {
+        id: true,
+        accountId: true,
+        groupId: true,
+        sourceSiteId: true,
+        sourceGroupId: true,
+      },
+    }),
+  ]);
+  if (exclusions.length === 0) return 0;
+
+  const existingSiteIds = new Set(sites.map((site) => site.id));
+  const groupBindingKeys = new Set(groupBindings.map((binding) => (
+    groupSourceKey(binding.targetId, binding.sourceSiteId, binding.sourceGroupId)
+  )));
+  const accountBindingKeys = new Set(accountBindings.map((binding) => (
+    accountSourceKey(binding.targetId, binding.sourceSiteId, binding.sourceGroupId)
+  )));
+  const invalidIds = exclusions
+    .filter((exclusion) => (
+      !existingSiteIds.has(exclusion.sourceSiteId)
+      || !groupBindingKeys.has(groupSourceKey(exclusion.groupId, exclusion.sourceSiteId, exclusion.sourceGroupId))
+      || !accountBindingKeys.has(accountSourceKey(exclusion.accountId, exclusion.sourceSiteId, exclusion.sourceGroupId))
+    ))
+    .map((exclusion) => exclusion.id);
+
+  if (invalidIds.length === 0) return 0;
+  return (await input.tx.upstreamMonitorRateExclusion.deleteMany({
+    where: { id: { in: invalidIds } },
+  })).count;
+}
+
 async function cleanupConnection(db: PrismaClient, connection: CleanupConnection): Promise<InvalidDataCleanupConnectionResult> {
   const [remote, sources] = await Promise.all([
     fetchRemoteState(connection),
@@ -309,6 +413,9 @@ async function cleanupConnection(db: PrismaClient, connection: CleanupConnection
           where: { connectionId: connection.id, targetType: "group", targetId: { in: staleGroupIds } },
         })).count;
         totals.deletedGroupRules = (await tx.blGroupRateRule.deleteMany({
+          where: { connectionId: connection.id, groupId: { in: staleGroupIds } },
+        })).count;
+        totals.deletedInvalidMonitorRateExclusions += (await tx.upstreamMonitorRateExclusion.deleteMany({
           where: { connectionId: connection.id, groupId: { in: staleGroupIds } },
         })).count;
       }
@@ -382,6 +489,9 @@ async function cleanupConnection(db: PrismaClient, connection: CleanupConnection
         totals.deletedUpstreamMonitorRules = (await tx.upstreamMonitorRule.deleteMany({
           where: { connectionId: connection.id, accountId: { in: staleAccountIds } },
         })).count;
+        totals.deletedInvalidMonitorRateExclusions += (await tx.upstreamMonitorRateExclusion.deleteMany({
+          where: { connectionId: connection.id, accountId: { in: staleAccountIds } },
+        })).count;
       }
     } else {
       totals.disabledAccountRules = (await tx.blAccountRateRule.updateMany({
@@ -393,6 +503,12 @@ async function cleanupConnection(db: PrismaClient, connection: CleanupConnection
         data: { enabled: false, nextCheckAt: null },
       })).count;
     }
+
+    totals.deletedMissingSourceBindings += await cleanupMissingSourceSiteBindings({
+      tx,
+      connectionId: connection.id,
+      missingSourceBindings,
+    });
 
     if (!sources.error && sources.checkedSiteIds.length > 0) {
       const sourcesByKey = new Map(sources.rows.map((source) => [sourceKey(source.siteId, source.groupId), source]));
@@ -452,6 +568,7 @@ async function cleanupConnection(db: PrismaClient, connection: CleanupConnection
       }
     }
 
+    totals.deletedInvalidMonitorRateExclusions += await cleanupInvalidMonitorRateExclusions({ tx, connectionId: connection.id });
     totals.disabledRulesWithoutSources = await disableRulesWithoutSources({ tx, connectionId: connection.id });
   });
 

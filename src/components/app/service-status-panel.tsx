@@ -121,7 +121,8 @@ export function ServiceStatusPanel({ connectionId }: { connectionId?: number }) 
         + result.totals.deletedAccountRules
         + result.totals.deletedUpstreamMonitorRules
         + result.totals.removedAnnouncementTargetIds
-        + result.totals.deletedMissingSourceBindings;
+        + result.totals.deletedMissingSourceBindings
+        + result.totals.deletedInvalidMonitorRateExclusions;
       const totalDisabled = result.totals.disabledGroupRules
         + result.totals.disabledAccountRules
         + result.totals.disabledUpstreamMonitorRules
@@ -343,6 +344,7 @@ export function ServiceStatusPanel({ connectionId }: { connectionId?: number }) 
                 <div>监控规则：{cleanupInvalidData.data.totals.deletedUpstreamMonitorRules}</div>
                 <div>公告目标：{cleanupInvalidData.data.totals.removedAnnouncementTargetIds}</div>
                 <div>失效源绑定：{cleanupInvalidData.data.totals.deletedMissingSourceBindings}</div>
+                <div>失效暂停源：{cleanupInvalidData.data.totals.deletedInvalidMonitorRateExclusions}</div>
                 <div>更新源名称：{cleanupInvalidData.data.totals.updatedSourceBindingNames}</div>
                 <div>
                   禁用规则：{

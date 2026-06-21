@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { Prisma } from "@prisma/client";
 import { db } from "@/server/db";
 import { resolveBlEffectiveRate, resolveBlRateMultiplier, type BlPublicClient } from "@/server/clients/bl-public";
 import { normalizeRateMultiplier } from "@/server/rates";
@@ -77,6 +78,30 @@ function sourceKey(siteId: number, groupId: string) {
   return `${siteId}:${groupId}`;
 }
 
+async function pruneMonitorRateExclusionsForTarget(input: {
+  tx: Prisma.TransactionClient;
+  connectionId: number;
+  targetType: BlTargetType;
+  targetId: number;
+  bindings: BlSourceBindingInput[];
+}) {
+  const retainedSourceKeys = new Set(input.bindings.map((binding) => sourceKey(binding.sourceSiteId, binding.sourceGroupId)));
+  const rows = await input.tx.upstreamMonitorRateExclusion.findMany({
+    where: {
+      connectionId: input.connectionId,
+      ...(input.targetType === "group" ? { groupId: input.targetId } : { accountId: input.targetId }),
+    },
+    select: { id: true, sourceSiteId: true, sourceGroupId: true },
+  });
+  const staleIds = rows
+    .filter((row) => !retainedSourceKeys.has(sourceKey(row.sourceSiteId, row.sourceGroupId)))
+    .map((row) => row.id);
+
+  if (staleIds.length > 0) {
+    await input.tx.upstreamMonitorRateExclusion.deleteMany({ where: { id: { in: staleIds } } });
+  }
+}
+
 function normalizeNullable(value?: string | null) {
   const trimmed = value?.trim();
   return trimmed ? trimmed : null;
@@ -122,6 +147,14 @@ export async function replaceBlSourceBindings(input: {
         targetType: input.targetType,
         targetId: input.targetId,
       },
+    });
+
+    await pruneMonitorRateExclusionsForTarget({
+      tx,
+      connectionId: input.connectionId,
+      targetType: input.targetType,
+      targetId: input.targetId,
+      bindings: deduped,
     });
 
     if (deduped.length === 0) return;
