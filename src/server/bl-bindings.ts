@@ -1,7 +1,7 @@
 import { z } from "zod";
 import type { Prisma } from "@prisma/client";
 import { db } from "@/server/db";
-import { resolveBlEffectiveRate, resolveBlRateMultiplier, type BlPublicClient } from "@/server/clients/bl-public";
+import { resolveBlEffectiveRate, type BlPublicClient } from "@/server/clients/bl-public";
 import { normalizeRateMultiplier } from "@/server/rates";
 import {
   groupMonitorRateExclusionsBySource,
@@ -279,7 +279,7 @@ export async function listBlSourceBindings(input: {
       sourceGroupId: row.sourceGroupId,
       sourceGroupName: row.sourceGroupName,
       sourcePlatform: row.sourcePlatform,
-      currentRate: resolveBlRateMultiplier(rate),
+      currentRate: resolveBlEffectiveRate(rate),
       actualRate: toFiniteNumber(rate?.actual_rate_multiplier),
       effectiveRate: resolveBlEffectiveRate(rate),
       monitorExcluded: monitorExclusions.length > 0,

@@ -1,5 +1,5 @@
 import type { Prisma, PrismaClient } from "@prisma/client";
-import { BlPublicClient, resolveBlRateMultiplier } from "@/server/clients/bl-public";
+import { BlPublicClient, resolveBlEffectiveRate } from "@/server/clients/bl-public";
 import { Sub2ApiAdminClient, type Sub2ApiGroup } from "@/server/clients/sub2api-admin";
 import { evaluateGroupRateRule } from "@/server/bl-bindings";
 import { decrypt } from "@/server/crypto";
@@ -385,7 +385,7 @@ async function applyBoundGroupRules(input: {
         sourceSiteName: binding.sourceSiteName,
         sourceGroupId: binding.sourceGroupId,
         sourceGroupName: binding.sourceGroupName ?? "",
-        currentRate: resolveBlRateMultiplier(rate),
+        currentRate: resolveBlEffectiveRate(rate),
         rawRate: typeof rate?.rate_multiplier === "number" ? rate.rate_multiplier : null,
         rechargeRatio: typeof rate?.recharge_ratio === "number" ? rate.recharge_ratio : null,
         monitorExcluded: monitorExclusions.length > 0,
@@ -609,7 +609,7 @@ async function applyBoundAccountRules(input: {
         sourceSiteName: binding.sourceSiteName,
         sourceGroupId: binding.sourceGroupId,
         sourceGroupName: binding.sourceGroupName ?? "",
-        currentRate: resolveBlRateMultiplier(rate),
+        currentRate: resolveBlEffectiveRate(rate),
         rawRate: typeof rate?.rate_multiplier === "number" ? rate.rate_multiplier : null,
         rechargeRatio: typeof rate?.recharge_ratio === "number" ? rate.recharge_ratio : null,
       };

@@ -82,7 +82,7 @@ function includesSearch(rate: BlRateOption, query: string) {
     rate.group_id,
     rate.name,
     rate.platform,
-    formatRate(resolveRateMultiplier(rate)),
+    formatRate(resolveEffectiveRate(rate)),
     formatRate(rate.effective_rate),
     formatRate(rate.actual_rate_multiplier),
   ].filter(Boolean).join(" ").toLowerCase();
@@ -106,14 +106,14 @@ function normalizeRateByRechargeRatio(value: unknown, rechargeRatio: unknown) {
   return ratio && ratio > 0 ? numeric / ratio : numeric;
 }
 
-function resolveRateMultiplier(rate: BlRateOption | undefined) {
-  const actual = finiteNumber(rate?.actual_rate_multiplier);
+function resolveEffectiveRate(rate: BlRateOption | undefined) {
+  const actual = finiteNumber(rate?.actual_effective_rate);
   if (actual !== null) return actual;
-  return normalizeRateByRechargeRatio(rate?.rate_multiplier, rate?.recharge_ratio);
+  return normalizeRateByRechargeRatio(rate?.effective_rate, rate?.recharge_ratio);
 }
 
 function rateValue(rate: BlRateOption) {
-  return resolveRateMultiplier(rate) ?? Number.POSITIVE_INFINITY;
+  return resolveEffectiveRate(rate) ?? Number.POSITIVE_INFINITY;
 }
 
 export const BlSourceBadges = memo(function BlSourceBadges({ bindings, loading }: { bindings: BlBindingWithRate[]; loading?: boolean }) {
@@ -364,7 +364,7 @@ export const BlSourceBindingSelector = memo(function BlSourceBindingSelector({
                       {rate.site_name} / #{rate.group_id}{rate.platform ? ` / ${rate.platform}` : ""}
                     </span>
                   </span>
-                  <span className="font-mono text-xs text-muted-foreground">{formatRate(resolveRateMultiplier(rate))}</span>
+                  <span className="font-mono text-xs text-muted-foreground">{formatRate(resolveEffectiveRate(rate))}</span>
                 </Label>
               );
             })}

@@ -1442,7 +1442,7 @@ export function AccountsPanel({ connectionId }: { connectionId: number }) {
       </div>
 
       {error ? <p className="text-sm text-destructive">加载账号失败：{error.message}</p> : null}
-      {bindingData?.rateError ? <p className="text-sm text-destructive">加载采集当前倍率失败：{bindingData.rateError}</p> : null}
+      {bindingData?.rateError ? <p className="text-sm text-destructive">加载采集生效倍率失败：{bindingData.rateError}</p> : null}
       {balanceThresholdsQuery.error ? <p className="text-sm text-destructive">加载余额预警配置失败：{balanceThresholdsQuery.error.message}</p> : null}
       {balanceWebhookQuery.error ? <p className="text-sm text-destructive">加载余额 Webhook 配置失败：{balanceWebhookQuery.error.message}</p> : null}
 
@@ -1669,7 +1669,7 @@ export function AccountsPanel({ connectionId }: { connectionId: number }) {
                 <TableHead>账号 ID / 名称</TableHead>
                 <TableHead>类型</TableHead>
                 <TableHead>分组</TableHead>
-                <TableHead>采集源分组 / 当前倍率</TableHead>
+                <TableHead>采集源分组 / 生效倍率</TableHead>
                 <TableHead className="w-24">账号倍率</TableHead>
                 <TableHead className="w-20">优先级</TableHead>
                 <TableHead>规则</TableHead>

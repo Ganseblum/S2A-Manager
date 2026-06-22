@@ -178,7 +178,6 @@ async function runDueBalanceAlertsFromDb() {
 async function runCycle() {
   const cycleStartedAt = new Date();
   const settings = await db.setting.findMany();
-  const settingMap = new Map(settings.map((row) => [row.key, row.value]));
   const runtimeSettings = workerRuntimeSettingsFromRows(settings);
   currentWorkerIntervalSeconds = runtimeSettings.workerIntervalSeconds;
 

@@ -319,7 +319,7 @@ export function GroupsPanel({ connectionId }: { connectionId: number }) {
       </div>
 
       {listError ? <p className="text-sm text-destructive">加载分组失败：{listError.message}</p> : null}
-      {bindingData?.rateError ? <p className="text-sm text-destructive">加载采集当前倍率失败：{bindingData.rateError}</p> : null}
+      {bindingData?.rateError ? <p className="text-sm text-destructive">加载采集生效倍率失败：{bindingData.rateError}</p> : null}
 
       <Card>
         <CardContent className="p-0">
@@ -329,7 +329,7 @@ export function GroupsPanel({ connectionId }: { connectionId: number }) {
                 <TableHead className="w-16">#</TableHead>
                 <TableHead>分组名称</TableHead>
                 <TableHead className="w-28">默认倍率</TableHead>
-                <TableHead>采集源分组 / 当前倍率</TableHead>
+                <TableHead>采集源分组 / 生效倍率</TableHead>
                 <TableHead>规则</TableHead>
                 <TableHead className="w-36">操作</TableHead>
               </TableRow>
