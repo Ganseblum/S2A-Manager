@@ -25,9 +25,19 @@ function firstForwardedValue(value: string | null) {
   return value?.split(",")[0]?.trim() || "";
 }
 
+function withoutPort(host: string) {
+  if (!host) return "";
+  if (host.startsWith("[")) {
+    const end = host.indexOf("]");
+    return end >= 0 ? host.slice(0, end + 1) : host;
+  }
+  return host.split(":")[0] ?? "";
+}
+
 function forwardedOrigin(request: NextRequest) {
   const forwardedHost = firstForwardedValue(request.headers.get("x-forwarded-host"));
-  const host = forwardedHost || firstForwardedValue(request.headers.get("host")) || request.nextUrl.host;
+  const requestHost = firstForwardedValue(request.headers.get("host"));
+  const host = withoutPort(forwardedHost || requestHost || request.nextUrl.hostname || request.nextUrl.host);
   if (!host) return request.nextUrl.origin;
 
   const forwardedProto = firstForwardedValue(request.headers.get("x-forwarded-proto")).toLowerCase();
@@ -35,13 +45,7 @@ function forwardedOrigin(request: NextRequest) {
     ? forwardedProto
     : request.nextUrl.protocol.replace(/:$/, "") || "http";
 
-  const forwardedPort = firstForwardedValue(request.headers.get("x-forwarded-port"));
-  const shouldAppendPort = forwardedPort
-    && /^[0-9]+$/.test(forwardedPort)
-    && !host.includes(":")
-    && !((proto === "http" && forwardedPort === "80") || (proto === "https" && forwardedPort === "443"));
-
-  return `${proto}://${host}${shouldAppendPort ? `:${forwardedPort}` : ""}`;
+  return `${proto}://${host}`;
 }
 
 export async function middleware(request: NextRequest) {

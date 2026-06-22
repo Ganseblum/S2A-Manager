@@ -38,6 +38,7 @@ export type AccountBalanceAlertResult = {
 };
 
 type AlertState = Record<string, { lastSentAt?: string; lastRemaining?: number; lastThreshold?: number }>;
+type AlertStateRow = AlertState[string];
 type BalanceIssue = {
   accountId: number;
   threshold: number;
@@ -210,6 +211,26 @@ async function writeAlertState(connectionId: number, state: AlertState) {
   await setSetting(stateSettingKey(connectionId), JSON.stringify(state));
 }
 
+export async function clearAccountBalanceAlertState(connectionId: number, accountIds?: number[]) {
+  if (!accountIds || accountIds.length === 0) {
+    await writeAlertState(connectionId, {});
+    return;
+  }
+
+  const idSet = new Set(accountIds.map(String));
+  if (idSet.size === 0) return;
+
+  const state = await readAlertState(connectionId);
+  let changed = false;
+  for (const accountId of idSet) {
+    if (accountId in state) {
+      delete state[accountId];
+      changed = true;
+    }
+  }
+  if (changed) await writeAlertState(connectionId, state);
+}
+
 function isLowBalance(balance: AccountBalanceResult | undefined, threshold: number | undefined) {
   return balance?.status === "ok"
     && threshold !== undefined
@@ -341,9 +362,10 @@ function accountNameById(accounts: unknown[]) {
   return map;
 }
 
-function shouldSkipCooldown(lastSentAt: string | undefined, cooldownMinutes: number, now: Date) {
-  if (!lastSentAt || cooldownMinutes <= 0) return false;
-  const sentAt = new Date(lastSentAt).getTime();
+function shouldSkipCooldown(state: AlertStateRow | undefined, threshold: number, cooldownMinutes: number, now: Date) {
+  if (!state?.lastSentAt || cooldownMinutes <= 0) return false;
+  if (state.lastThreshold !== undefined && state.lastThreshold !== threshold) return false;
+  const sentAt = new Date(state.lastSentAt).getTime();
   if (!Number.isFinite(sentAt)) return false;
   return now.getTime() - sentAt < cooldownMinutes * 60_000;
 }
@@ -383,7 +405,7 @@ export async function checkAccountBalanceAlerts(input: {
 
   let skippedCooldown = 0;
   const dueEntries = thresholdEntries.filter((row) => {
-    if (input.ignoreCooldown || !shouldSkipCooldown(state[String(row.accountId)]?.lastSentAt, config.cooldownMinutes, now)) {
+    if (input.ignoreCooldown || !shouldSkipCooldown(state[String(row.accountId)], row.threshold, config.cooldownMinutes, now)) {
       return true;
     }
     skippedCooldown += 1;
@@ -453,7 +475,14 @@ export async function checkAccountBalanceAlerts(input: {
     const balance = balancesById.get(row.accountId);
     return balance && isLowBalance(balance, row.threshold) ? [{ row, balance }] : [];
   });
-  const names = lowRows.length > 0 ? accountNameById(input.accounts ?? await input.s2Client.listAccounts()) : new Map<number, string>();
+  let names = new Map<number, string>();
+  if (lowRows.length > 0) {
+    try {
+      names = accountNameById(input.accounts ?? await input.s2Client.listAccounts());
+    } catch {
+      names = new Map<number, string>();
+    }
+  }
   const lowAccounts = lowRows.map(({ row, balance }): AccountBalanceAlertAccount => ({
       accountId: row.accountId,
       accountName: names.get(row.accountId) ?? `#${row.accountId}`,

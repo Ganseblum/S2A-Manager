@@ -10,6 +10,7 @@ import { getAccountId } from "@/server/account-utils";
 import { applyAccountPriorityRule, readAccountPriorityRule, saveAccountPriorityRule } from "@/server/account-priority-rule";
 import {
   checkAccountBalanceAlerts,
+  clearAccountBalanceAlertState,
   markAccountBalanceAlertsDue,
   readAccountBalanceWebhookConfig,
   readBalanceThresholds,
@@ -144,7 +145,11 @@ export const accountsRouter = createTRPCRouter({
   saveBalanceWebhookConfig: protectedProcedure
     .input(webhookConfigInput)
     .mutation(async ({ input }) => {
+      const previous = await readAccountBalanceWebhookConfig(input.connectionId);
       const saved = await saveAccountBalanceWebhookConfig(input.connectionId, input);
+      if (previous.url !== saved.url || previous.enabled !== saved.enabled) {
+        await clearAccountBalanceAlertState(input.connectionId);
+      }
       await markAccountBalanceAlertsDue();
       await safeLogSync(input.connectionId, "save_account_balance_webhook", `connection:${input.connectionId}`, {
         enabled: saved.enabled,
@@ -230,12 +235,16 @@ export const accountsRouter = createTRPCRouter({
     }))
     .mutation(async ({ input }) => {
       const thresholds = await readBalanceThresholds(input.connectionId);
+      const previousThreshold = thresholds[String(input.accountId)];
       if (input.threshold === null) {
         delete thresholds[String(input.accountId)];
       } else {
         thresholds[String(input.accountId)] = input.threshold;
       }
       const saved = await writeBalanceThresholds(input.connectionId, thresholds);
+      if (previousThreshold !== saved[String(input.accountId)]) {
+        await clearAccountBalanceAlertState(input.connectionId, [input.accountId]);
+      }
       await markAccountBalanceAlertsDue();
       return saved;
     }),

@@ -94,6 +94,23 @@ function delay(ms: number) {
   });
 }
 
+async function delayUntilNextCycle(totalDelayMs: number) {
+  const pollMs = 30_000;
+  const deadline = Date.now() + Math.max(0, totalDelayMs);
+  while (!stopping) {
+    const remainingMs = deadline - Date.now();
+    if (remainingMs <= 0) return;
+    await delay(Math.min(pollMs, remainingMs));
+    if (stopping) return;
+    try {
+      await runDueBalanceAlertsFromDb();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.error(`[worker] Balance alert wake check failed: ${message}`);
+    }
+  }
+}
+
 function requestStop() {
   stopping = true;
   wakeDelay?.();
@@ -108,6 +125,54 @@ function settingDate(settings: Map<string, string>, key: string) {
 
 function sameRate(left: number, right: number) {
   return ratesEqual(left, right);
+}
+
+async function runDueBalanceAlerts(settings: Map<string, string>, accountBalanceAlertIntervalSeconds: number) {
+  const balanceAlertNextRunAt = settingDate(settings, "account_balance_alert_next_run_at");
+  const balanceAlertDue = !balanceAlertNextRunAt || balanceAlertNextRunAt.getTime() <= Date.now();
+  if (!balanceAlertDue) {
+    console.log(`[worker] Balance alerts skipped until ${balanceAlertNextRunAt.toISOString()}`);
+    return false;
+  }
+
+  const balanceAlertStartedAt = new Date();
+  const nextBalanceAlertRunAt = new Date(balanceAlertStartedAt.getTime() + accountBalanceAlertIntervalSeconds * 1000);
+  await writeWorkerState({
+    account_balance_alert_last_run_at: balanceAlertStartedAt,
+    account_balance_alert_next_run_at: nextBalanceAlertRunAt,
+  });
+  const balanceAlertConns = await db.connection.findMany({ where: { enabled: true } });
+  for (const conn of balanceAlertConns) {
+    try {
+      const s2Client = new Sub2ApiAdminClient(conn.baseUrl, decrypt(conn.adminApiKey));
+      const alertResult = await checkAccountBalanceAlerts({
+        db,
+        connectionId: conn.id,
+        connectionName: conn.name,
+        s2Client,
+        force: true,
+        ignoreCooldown: false,
+        action: "auto_account_balance_webhook_alert",
+      });
+      if (alertResult.enabled) {
+        console.log(`[worker] Balance alerts for connection ${conn.id}: checked=${alertResult.checked}, low=${alertResult.low}, sent=${alertResult.sent}, cooldown=${alertResult.skippedCooldown}, issues=${alertResult.balanceIssues}, failed=${alertResult.failed}`);
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.error(`[worker] Balance alerts failed for connection ${conn.id}: ${message}`);
+      await logSync(conn.id, "auto_account_balance_webhook_alert", `connection:${conn.id}`, {}, "failed", message);
+    }
+    await writeWorkerState({ worker_heartbeat_at: new Date() });
+  }
+  return true;
+}
+
+async function runDueBalanceAlertsFromDb() {
+  const settings = await db.setting.findMany();
+  const settingMap = new Map(settings.map((row) => [row.key, row.value]));
+  const runtimeSettings = workerRuntimeSettingsFromRows(settings);
+  currentWorkerIntervalSeconds = runtimeSettings.workerIntervalSeconds;
+  return runDueBalanceAlerts(settingMap, runtimeSettings.accountBalanceAlertIntervalSeconds);
 }
 
 async function runCycle() {
@@ -294,41 +359,7 @@ async function runCycle() {
     await writeWorkerState({ worker_heartbeat_at: new Date() });
   }
 
-  const balanceAlertNextRunAt = settingDate(settingMap, "account_balance_alert_next_run_at");
-  const balanceAlertDue = !balanceAlertNextRunAt || balanceAlertNextRunAt.getTime() <= Date.now();
-  if (balanceAlertDue) {
-    const balanceAlertStartedAt = new Date();
-    const nextBalanceAlertRunAt = new Date(balanceAlertStartedAt.getTime() + runtimeSettings.accountBalanceAlertIntervalSeconds * 1000);
-    await writeWorkerState({
-      account_balance_alert_last_run_at: balanceAlertStartedAt,
-      account_balance_alert_next_run_at: nextBalanceAlertRunAt,
-    });
-    const balanceAlertConns = await db.connection.findMany({ where: { enabled: true } });
-    for (const conn of balanceAlertConns) {
-      try {
-        const s2Client = new Sub2ApiAdminClient(conn.baseUrl, decrypt(conn.adminApiKey));
-        const alertResult = await checkAccountBalanceAlerts({
-          db,
-          connectionId: conn.id,
-          connectionName: conn.name,
-          s2Client,
-          force: true,
-          ignoreCooldown: false,
-          action: "auto_account_balance_webhook_alert",
-        });
-        if (alertResult.enabled) {
-          console.log(`[worker] Balance alerts for connection ${conn.id}: checked=${alertResult.checked}, low=${alertResult.low}, sent=${alertResult.sent}, cooldown=${alertResult.skippedCooldown}, issues=${alertResult.balanceIssues}, failed=${alertResult.failed}`);
-        }
-      } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        console.error(`[worker] Balance alerts failed for connection ${conn.id}: ${message}`);
-        await logSync(conn.id, "auto_account_balance_webhook_alert", `connection:${conn.id}`, {}, "failed", message);
-      }
-      await writeWorkerState({ worker_heartbeat_at: new Date() });
-    }
-  } else {
-    console.log(`[worker] Balance alerts skipped until ${balanceAlertNextRunAt.toISOString()}`);
-  }
+  await runDueBalanceAlertsFromDb();
 
   try {
     const checked = await runDueUpstreamMonitors(db, new Date(), {
@@ -400,7 +431,7 @@ async function main() {
 
     if (runOnce || stopping) break;
     const delayMs = Math.max(0, (nextRunAt?.getTime() ?? Date.now() + currentWorkerIntervalSeconds * 1000) - Date.now());
-    await delay(delayMs);
+    await delayUntilNextCycle(delayMs);
   }
 
   await writeWorkerState({
