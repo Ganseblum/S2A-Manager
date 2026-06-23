@@ -192,23 +192,23 @@ function UptimeTimeline({ row, compact = false }: { row: MonitorRow; compact?: b
   const nextLabel = rule ? (rule.enabled ? `下次 ${formatRelative(rule.nextCheckAt)}` : "已停用") : "未配置";
 
   return (
-    <div className={compact ? "w-full min-w-0 space-y-1.5" : "w-[280px] min-w-[240px] space-y-1.5 sm:w-[320px] sm:max-w-[42vw]"}>
+    <div className={compact ? "w-full min-w-0 space-y-1.5" : "w-[440px] min-w-[440px] space-y-1.5 xl:w-[480px]"}>
       <div className={compact ? "grid gap-0.5 text-[11px] font-medium text-muted-foreground" : "flex items-center justify-between gap-3 text-[11px] font-medium text-muted-foreground"}>
         <span>近 {windowSize} 次记录</span>
         <span className="truncate">{nextLabel}</span>
       </div>
       <div
-        className="grid gap-1"
-        style={{ gridTemplateColumns: `repeat(${windowSize}, minmax(0, 1fr))` }}
+        className={compact ? "grid gap-1" : "grid gap-[3px]"}
+        style={{ gridTemplateColumns: `repeat(${windowSize}, minmax(${compact ? "0" : "4px"}, 1fr))` }}
         aria-label={`近 ${windowSize} 次上游检测记录`}
       >
         {Array.from({ length: emptyCount }).map((_, index) => (
-          <span key={`empty-${index}`} className={compact ? "h-4 min-w-0 rounded-[2px] bg-muted/70" : "h-5 rounded-[2px] bg-muted/70"} title="暂无记录" />
+          <span key={`empty-${index}`} className={compact ? "h-4 min-w-0 rounded-[2px] bg-muted/70" : "h-6 min-w-[4px] rounded-[3px] bg-muted/70"} title="暂无记录" />
         ))}
         {results.map((result, index) => (
           <span
             key={`${result.status}-${result.createdAt ?? result.finishedAt ?? index}-${index}`}
-            className={`${compact ? "h-4 min-w-0" : "h-5"} rounded-[2px] ${timelineBarClass(result.status)}`}
+            className={`${compact ? "h-4 min-w-0 rounded-[2px]" : "h-6 min-w-[4px] rounded-[3px]"} ${timelineBarClass(result.status)}`}
             title={resultTitle(result)}
           />
         ))}
@@ -536,7 +536,7 @@ export function UpstreamMonitorPanel({ connectionId }: { connectionId: number })
             <TableHead>类型</TableHead>
             <TableHead>调度</TableHead>
             <TableHead>规则</TableHead>
-            <TableHead className="min-w-[320px]">Uptime</TableHead>
+            <TableHead className="min-w-[460px]">Uptime</TableHead>
             <TableHead>最近检测</TableHead>
             <TableHead>暂停</TableHead>
             <TableHead className="w-56">操作</TableHead>
