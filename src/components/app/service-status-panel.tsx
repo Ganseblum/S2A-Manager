@@ -80,8 +80,8 @@ function StatusCard({
       : "bg-destructive/10 text-destructive";
 
   return (
-    <Card>
-      <CardContent className="flex items-start gap-3 p-4">
+    <Card className="h-full">
+      <CardContent className="flex min-h-24 items-center gap-3 p-4">
         <div className={`rounded-md p-2 ${toneClass}`}>
           <Icon className="h-5 w-5" />
         </div>
@@ -181,12 +181,12 @@ export function ServiceStatusPanel({ connectionId }: { connectionId?: number }) 
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="text-lg font-semibold">服务状态</h2>
           <p className="text-sm text-muted-foreground">最后检查：{formatDateTime(data.checkedAt)}</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex w-full flex-wrap gap-2 sm:w-auto sm:items-center sm:justify-end [&>button]:flex-1 sm:[&>button]:flex-none">
           <Button variant="outline" size="sm" onClick={handleCleanupInvalidData} disabled={cleanupInvalidData.isPending}>
             {cleanupInvalidData.isPending ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <Trash2 className="mr-1 h-4 w-4" />}
             清理无效数据
@@ -283,27 +283,27 @@ export function ServiceStatusPanel({ connectionId }: { connectionId?: number }) 
             <CardTitle className="text-base">任务配置</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3 text-sm">
-            <div className="flex items-center justify-between rounded-md border border-border/70 p-3">
+            <div className="flex items-center justify-between gap-3 rounded-md border border-border/70 p-3">
               <span className="text-muted-foreground">倍率采集源</span>
               {statusBadge(blTone, data.bl.configured ? "已配置" : "未配置")}
             </div>
-            <div className="flex items-center justify-between rounded-md border border-border/70 p-3">
+            <div className="flex items-center justify-between gap-3 rounded-md border border-border/70 p-3">
               <span className="text-muted-foreground">采集源总数</span>
               <span className="font-mono">{data.bl.totalSites}</span>
             </div>
-            <div className="flex items-center justify-between rounded-md border border-border/70 p-3">
+            <div className="flex items-center justify-between gap-3 rounded-md border border-border/70 p-3">
               <span className="text-muted-foreground">启用采集源</span>
               <span className="font-mono">{data.bl.enabledSites}</span>
             </div>
-            <div className="flex items-center justify-between rounded-md border border-border/70 p-3">
+            <div className="flex items-center justify-between gap-3 rounded-md border border-border/70 p-3">
               <span className="text-muted-foreground">在线 / 离线</span>
               <span className="font-mono">{data.bl.onlineSites}/{data.bl.offlineSites}</span>
             </div>
-            <div className="flex items-center justify-between rounded-md border border-border/70 p-3">
+            <div className="flex items-center justify-between gap-3 rounded-md border border-border/70 p-3">
               <span className="text-muted-foreground">自动同步连接</span>
               <span className="font-mono">{data.connections.auto}</span>
             </div>
-            <div className="flex items-center justify-between rounded-md border border-border/70 p-3">
+            <div className="flex items-center justify-between gap-3 rounded-md border border-border/70 p-3">
               <span className="text-muted-foreground">上游检测规则</span>
               <span className="font-mono">{data.upstreamMonitor.enabledRules}/{data.upstreamMonitor.rules} 启用</span>
             </div>
@@ -323,7 +323,7 @@ export function ServiceStatusPanel({ connectionId }: { connectionId?: number }) 
                 删除不存在目标或来源对应的 BL 绑定、倍率规则和监控规则；源站分组改名时更新绑定名称；连接或密钥异常时禁用自动规则，保留绑定以便修复后重新启用。
               </p>
             </div>
-            <Button variant="outline" size="sm" onClick={handleCleanupInvalidData} disabled={cleanupInvalidData.isPending} className="shrink-0">
+            <Button variant="outline" size="sm" onClick={handleCleanupInvalidData} disabled={cleanupInvalidData.isPending} className="w-full shrink-0 md:w-auto">
               {cleanupInvalidData.isPending ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <Trash2 className="mr-1 h-4 w-4" />}
               执行清理
             </Button>

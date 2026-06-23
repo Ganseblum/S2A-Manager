@@ -178,7 +178,7 @@ function UptimeTimeline({ row }: { row: MonitorRow }) {
   const nextLabel = rule ? (rule.enabled ? `下次 ${formatRelative(rule.nextCheckAt)}` : "已停用") : "未配置";
 
   return (
-    <div className="w-[320px] max-w-[42vw] min-w-[260px] space-y-1.5">
+    <div className="w-[280px] min-w-[240px] space-y-1.5 sm:w-[320px] sm:max-w-[42vw]">
       <div className="flex items-center justify-between gap-3 text-[11px] font-medium text-muted-foreground">
         <span>近 {uptimeWindowSize} 次记录</span>
         <span className="truncate">{nextLabel}</span>
@@ -407,9 +407,9 @@ export function UpstreamMonitorPanel({ connectionId }: { connectionId: number })
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h2 className="text-lg font-semibold">上游源站检测</h2>
-        <Button variant="outline" size="sm" onClick={handleRefresh} disabled={isFetching}>
+        <Button variant="outline" size="sm" className="w-full sm:w-auto" onClick={handleRefresh} disabled={isFetching}>
           {isFetching ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-1 h-4 w-4" />}
           刷新
         </Button>
@@ -417,22 +417,22 @@ export function UpstreamMonitorPanel({ connectionId }: { connectionId: number })
 
       {error ? <p className="text-sm text-destructive">加载检测数据失败：{error.message}</p> : null}
 
-      <div className="grid gap-3 md:grid-cols-4">
-        <Card>
-          <CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground">监测账号</CardTitle></CardHeader>
-          <CardContent><p className="text-2xl font-semibold">{monitoredRows.length}</p></CardContent>
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+        <Card className="h-full">
+          <CardHeader className="pb-1"><CardTitle className="text-sm text-muted-foreground">监测账号</CardTitle></CardHeader>
+          <CardContent className="flex min-h-10 items-center"><p className="text-2xl font-semibold">{monitoredRows.length}</p></CardContent>
         </Card>
-        <Card>
-          <CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground">平均 Uptime</CardTitle></CardHeader>
-          <CardContent><p className="text-2xl font-semibold">{formatUptime(averageUptime)}</p></CardContent>
+        <Card className="h-full">
+          <CardHeader className="pb-1"><CardTitle className="text-sm text-muted-foreground">平均 Uptime</CardTitle></CardHeader>
+          <CardContent className="flex min-h-10 items-center"><p className="text-2xl font-semibold">{formatUptime(averageUptime)}</p></CardContent>
         </Card>
-        <Card>
-          <CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground">暂停中</CardTitle></CardHeader>
-          <CardContent><p className="text-2xl font-semibold">{pausedCount}</p></CardContent>
+        <Card className="h-full">
+          <CardHeader className="pb-1"><CardTitle className="text-sm text-muted-foreground">暂停中</CardTitle></CardHeader>
+          <CardContent className="flex min-h-10 items-center"><p className="text-2xl font-semibold">{pausedCount}</p></CardContent>
         </Card>
-        <Card>
-          <CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground">异常规则</CardTitle></CardHeader>
-          <CardContent><p className="text-2xl font-semibold">{failingCount}</p></CardContent>
+        <Card className="h-full">
+          <CardHeader className="pb-1"><CardTitle className="text-sm text-muted-foreground">异常规则</CardTitle></CardHeader>
+          <CardContent className="flex min-h-10 items-center"><p className="text-2xl font-semibold">{failingCount}</p></CardContent>
         </Card>
       </div>
 
@@ -549,7 +549,7 @@ export function UpstreamMonitorPanel({ connectionId }: { connectionId: number })
                 <div className="text-xs text-muted-foreground">#{editingRow.accountId} {editingRow.platform ? `/ ${editingRow.platform}` : ""}</div>
               </div>
 
-              <div className="flex items-center justify-between rounded-md border border-border/70 px-3 py-2">
+              <div className="flex items-center justify-between gap-3 rounded-md border border-border/70 px-3 py-2">
                 <Label htmlFor="monitor-enabled">启用检测</Label>
                 <Switch id="monitor-enabled" checked={form.enabled} onCheckedChange={(checked) => setForm((current) => ({ ...current, enabled: checked }))} />
               </div>

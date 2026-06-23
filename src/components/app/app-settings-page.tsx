@@ -81,7 +81,7 @@ export function AppSettingsPage() {
   };
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6">
+    <div className="mx-auto max-w-3xl space-y-4 sm:space-y-6">
       <div>
         <h2 className="text-xl font-semibold tracking-tight">应用设置</h2>
         <p className="mt-1 text-sm text-muted-foreground">管理后台 Worker 与可登录管理员账号。</p>
@@ -196,7 +196,7 @@ function AdminUsersList() {
           <div className="p-3 text-sm text-muted-foreground">暂无管理员</div>
         ) : (
           (users ?? []).map((user) => (
-            <div key={user.id} className="flex items-center justify-between gap-3 p-3">
+            <div key={user.id} className="flex flex-col gap-3 p-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="min-w-0">
                 <p className="truncate text-sm font-medium">{user.email}</p>
                 <p className="text-xs text-muted-foreground">{new Date(user.createdAt).toLocaleDateString("zh-CN")}</p>
@@ -204,7 +204,7 @@ function AdminUsersList() {
               <Button
                 variant="ghost"
                 size="sm"
-                className="text-destructive hover:text-destructive"
+                className="w-full text-destructive hover:text-destructive sm:w-auto"
                 disabled={deleteUser.isPending}
                 onClick={() => {
                   if (confirm("确定删除此管理员？")) deleteUser.mutate({ id: user.id });

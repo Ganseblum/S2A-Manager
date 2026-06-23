@@ -447,12 +447,12 @@ export function LogsPanel() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="text-lg font-semibold">日志管理</h2>
           <p className="text-sm text-muted-foreground">查看任务日志，控制记录开关、记录级别和日志保留时间。</p>
         </div>
-        <Button variant="outline" size="sm" onClick={() => logsQuery.refetch()} disabled={logsQuery.isFetching}>
+        <Button variant="outline" size="sm" className="w-full sm:w-auto" onClick={() => logsQuery.refetch()} disabled={logsQuery.isFetching}>
           {logsQuery.isFetching ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-1 h-4 w-4" />}
           刷新
         </Button>
@@ -463,8 +463,8 @@ export function LogsPanel() {
           <CardTitle className="text-base">日志设置</CardTitle>
         </CardHeader>
         <CardContent className="grid gap-4 lg:grid-cols-[1fr_180px_180px_auto_auto]">
-          <div className="flex items-center justify-between rounded-md border border-border/70 px-3 py-2">
-            <div>
+          <div className="flex items-center justify-between gap-3 rounded-md border border-border/70 px-3 py-2">
+            <div className="min-w-0">
               <Label htmlFor="logs-enabled">日志开关</Label>
               <p className="text-xs text-muted-foreground">关闭后不再写入新的任务日志，已有日志不受影响。</p>
             </div>
@@ -484,13 +484,13 @@ export function LogsPanel() {
             </Select>
           </div>
           <div className="flex items-end">
-            <Button onClick={handleSaveSettings} disabled={settingsControlsDisabled}>
+            <Button className="w-full sm:w-auto" onClick={handleSaveSettings} disabled={settingsControlsDisabled}>
               {saveSettings.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
               保存设置
             </Button>
           </div>
           <div className="flex items-end">
-            <Button variant="outline" onClick={() => cleanupLogs.mutate({ retentionDays: Number(retentionDays) || undefined })} disabled={settingsControlsDisabled}>
+            <Button variant="outline" className="w-full sm:w-auto" onClick={() => cleanupLogs.mutate({ retentionDays: Number(retentionDays) || undefined })} disabled={settingsControlsDisabled}>
               <Trash2 className="h-4 w-4" />
               清理过期
             </Button>
@@ -567,9 +567,10 @@ export function LogsPanel() {
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="搜索动作、目标、详情或错误" className="pl-9" />
             </div>
-            <Button variant="outline" onClick={resetFilters}>重置筛选</Button>
+            <Button variant="outline" className="w-full sm:w-auto" onClick={resetFilters}>重置筛选</Button>
             <Button
               variant="destructive"
+              className="w-full sm:w-auto"
               onClick={() => {
                 const label = parsedConnectionId ? "当前连接" : "全部";
                 if (!confirm(`确定清空${label}日志？`)) return;
@@ -585,7 +586,7 @@ export function LogsPanel() {
       </Card>
 
       <Card>
-        <CardHeader className="flex-row items-center justify-between">
+        <CardHeader className="flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <CardTitle className="text-base">日志列表</CardTitle>
           <span className="text-sm text-muted-foreground">当前显示 {logs.length} 条 / 扫描匹配 {scannedTotal} 条</span>
         </CardHeader>

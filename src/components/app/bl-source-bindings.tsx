@@ -269,11 +269,11 @@ export const BlSourceBindingSelector = memo(function BlSourceBindingSelector({
 
   return (
     <div className="space-y-2">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-sm text-muted-foreground">
           {loading ? "正在加载采集源分组..." : `已选 ${value.length} / 可选 ${rates.length} / 当前 ${filteredRates.length}`}
         </p>
-        <Button type="button" variant="ghost" size="sm" onClick={() => onChange([])} disabled={disabled || value.length === 0}>
+        <Button type="button" variant="ghost" size="sm" className="w-full sm:w-auto" onClick={() => onChange([])} disabled={disabled || value.length === 0}>
           清空
         </Button>
       </div>

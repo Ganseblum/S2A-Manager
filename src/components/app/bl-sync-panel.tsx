@@ -587,26 +587,26 @@ export function BlSyncPanel({ connectionId }: { connectionId: number }) {
       </div>
 
       <div className="grid gap-3 md:grid-cols-4">
-        <Card>
-          <CardContent className="p-4">
+        <Card className="h-full">
+          <CardContent className="flex min-h-20 flex-col justify-center p-4">
             <div className="text-sm text-muted-foreground">采集源</div>
             <div className="mt-1 text-2xl font-semibold">{sitesList.length}</div>
           </CardContent>
         </Card>
-        <Card>
-          <CardContent className="p-4">
+        <Card className="h-full">
+          <CardContent className="flex min-h-20 flex-col justify-center p-4">
             <div className="text-sm text-muted-foreground">启用</div>
             <div className="mt-1 text-2xl font-semibold">{enabledSites}</div>
           </CardContent>
         </Card>
-        <Card>
-          <CardContent className="p-4">
+        <Card className="h-full">
+          <CardContent className="flex min-h-20 flex-col justify-center p-4">
             <div className="text-sm text-muted-foreground">在线</div>
             <div className="mt-1 text-2xl font-semibold">{onlineSites}</div>
           </CardContent>
         </Card>
-        <Card>
-          <CardContent className="p-4">
+        <Card className="h-full">
+          <CardContent className="flex min-h-20 flex-col justify-center p-4">
             <div className="text-sm text-muted-foreground">当前倍率</div>
             <div className="mt-1 text-2xl font-semibold">{ratesList.length}</div>
           </CardContent>
@@ -614,7 +614,7 @@ export function BlSyncPanel({ connectionId }: { connectionId: number }) {
       </div>
 
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
+        <CardHeader className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <CardTitle className="text-base">采集源站</CardTitle>
           {sitesLoading ? <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" /> : null}
         </CardHeader>
@@ -704,7 +704,7 @@ export function BlSyncPanel({ connectionId }: { connectionId: number }) {
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <div className="relative">
+            <div className="relative w-full sm:w-auto">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
                 value={rateSearch}
@@ -713,7 +713,7 @@ export function BlSyncPanel({ connectionId }: { connectionId: number }) {
                   setSelectedRateKey("");
                 }}
                 placeholder="搜索分组、站点、平台、倍率"
-                className="w-[260px] pl-9"
+                className="w-full pl-9 sm:w-[260px]"
               />
             </div>
             <Select
@@ -723,7 +723,7 @@ export function BlSyncPanel({ connectionId }: { connectionId: number }) {
                 setSelectedRateKey("");
               }}
             >
-              <SelectTrigger className="w-[170px]">
+              <SelectTrigger className="w-full sm:w-[170px]">
                 <SelectValue placeholder="全部平台" />
               </SelectTrigger>
               <SelectContent>
@@ -743,7 +743,7 @@ export function BlSyncPanel({ connectionId }: { connectionId: number }) {
                 setSelectedRateKey("");
               }}
             >
-              <SelectTrigger className="w-[220px]">
+              <SelectTrigger className="w-full sm:w-[220px]">
                 <SelectValue placeholder="筛选采集源" />
               </SelectTrigger>
               <SelectContent>
@@ -754,7 +754,7 @@ export function BlSyncPanel({ connectionId }: { connectionId: number }) {
               </SelectContent>
             </Select>
             <Select value={selectedGroupId} onValueChange={setSelectedGroupId} disabled={groupsLoading}>
-              <SelectTrigger className="w-[220px]">
+              <SelectTrigger className="w-full sm:w-[220px]">
                 <SelectValue placeholder="目标分组" />
               </SelectTrigger>
               <SelectContent>
@@ -797,7 +797,7 @@ export function BlSyncPanel({ connectionId }: { connectionId: number }) {
           ) : ratesList.length === 0 ? (
             <div className="p-5 text-sm text-muted-foreground">暂无倍率数据。先执行一次采集。</div>
           ) : ratesWithKeys.length === 0 ? (
-            <div className="flex items-center justify-between gap-3 p-5 text-sm text-muted-foreground">
+            <div className="flex flex-col gap-3 p-5 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
               <span>没有找到匹配的倍率记录，请调整查找条件。</span>
               <Button
                 variant="outline"
@@ -873,7 +873,7 @@ export function BlSyncPanel({ connectionId }: { connectionId: number }) {
       </Card>
 
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
+        <CardHeader className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <CardTitle className="text-base">倍率变更</CardTitle>
           <div className="text-sm text-muted-foreground">
             共 {changesTotal} 条
@@ -985,8 +985,8 @@ export function BlSyncPanel({ connectionId }: { connectionId: number }) {
               <Label>充值倍率</Label>
               <Input type="number" min="0.0001" step="any" value={form.rechargeRatio} onChange={(event) => setForm((current) => ({ ...current, rechargeRatio: event.target.value }))} />
             </div>
-            <div className="md:col-span-2 flex items-center justify-between rounded-md border border-border/70 p-3">
-              <div>
+            <div className="flex flex-col gap-3 rounded-md border border-border/70 p-3 sm:flex-row sm:items-center sm:justify-between md:col-span-2">
+              <div className="min-w-0">
                 <Label>启用采集</Label>
                 <p className="text-xs text-muted-foreground">关闭后 worker 不会自动采集该源站。</p>
               </div>

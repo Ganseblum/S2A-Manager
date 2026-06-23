@@ -220,7 +220,7 @@ function ConnectionCard({
       tabIndex={0}
       className={cn(
         "group cursor-pointer rounded-lg border text-left shadow-[inset_0_1px_0_hsl(0_0%_100%/0.2),0_10px_30px_hsl(217_34%_35%/0.08)] backdrop-blur-xl transition-colors focus:outline-none focus:ring-2 focus:ring-ring/25 focus:ring-offset-2 focus:ring-offset-background dark:shadow-[inset_0_1px_0_hsl(0_0%_100%/0.08),0_12px_34px_hsl(0_0%_0%/0.22)]",
-        compact ? "w-[min(82vw,300px)] shrink-0 p-3" : "w-full p-3",
+        compact ? "w-[min(78vw,280px)] shrink-0 p-2.5" : "w-full p-3",
         active
           ? "border-primary/40 bg-primary/[0.92] text-primary-foreground"
           : "border-white/[0.45] bg-white/[0.38] hover:bg-white/[0.58] dark:border-white/10 dark:bg-white/[0.07] dark:hover:bg-white/10",
@@ -269,7 +269,7 @@ function ConnectionCard({
           </span>
         ) : null}
       </div>
-      <div className={cn("mt-3 flex items-center gap-1", compact ? "opacity-100" : "opacity-100 md:opacity-0 md:transition-opacity md:group-hover:opacity-100")}>
+      <div className={cn("mt-3 flex items-center gap-1", compact ? "opacity-100 [&>button]:flex-1 [&>button]:px-1.5" : "opacity-100 md:opacity-0 md:transition-opacity md:group-hover:opacity-100")}>
         <Button
           type="button"
           variant={active ? "secondary" : "ghost"}
@@ -471,7 +471,7 @@ export function Shell() {
       </aside>
 
       <main className="flex min-h-0 min-w-0 flex-1 flex-col">
-        <header className="shrink-0 border-b border-white/[0.35] bg-white/[0.34] px-4 py-3 backdrop-blur-2xl sm:px-5 md:px-6 dark:border-white/10 dark:bg-white/[0.06]" data-motion="header">
+        <header className="hidden shrink-0 border-b border-white/[0.35] bg-white/[0.34] px-4 py-3 backdrop-blur-2xl sm:px-5 md:block md:px-6 dark:border-white/10 dark:bg-white/[0.06]" data-motion="header">
           <div className="flex items-center justify-between gap-3">
             <div className="min-w-0">
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -511,7 +511,7 @@ export function Shell() {
         </header>
 
         <div className="shrink-0 border-b border-white/[0.35] bg-white/[0.34] backdrop-blur-2xl dark:border-white/10 dark:bg-white/[0.06] md:hidden" data-motion="header">
-          <div className="flex items-center justify-between gap-3 px-4 py-3">
+          <div className="flex items-center justify-between gap-2 px-3 py-3">
             <div className="min-w-0">
               <div className="flex items-center gap-2">
                 <BrandMark className="size-9 text-slate-900 dark:text-white" />
@@ -521,13 +521,41 @@ export function Shell() {
                 </div>
               </div>
             </div>
-            <Button size="sm" variant="outline" onClick={openCreateConnection}>
-              <Plus className="size-4" />
-              添加
-            </Button>
+            <div className="flex shrink-0 items-center gap-1">
+              <ThemeToggle className="size-8" />
+              <Button variant={showAppSettings ? "secondary" : "ghost"} size="icon" className="size-8" onClick={() => setShowAppSettings((value) => !value)} title="应用设置">
+                {showAppSettings ? <ChevronLeft className="size-4" /> : <Settings className="size-4" />}
+              </Button>
+              <Button variant="ghost" size="icon" className="size-8" onClick={() => logout.mutate()} disabled={logout.isPending} title="退出登录">
+                <LogOut className="size-4" />
+              </Button>
+              <Button size="icon" variant="outline" className="size-8" onClick={openCreateConnection} title="添加连接">
+                <Plus className="size-4" />
+              </Button>
+            </div>
           </div>
-          <ProjectPromoLinks className="px-4 pb-3" />
-          <div className="overflow-x-auto px-4 pb-3">
+          <div className="px-3 pb-2">
+            <div className="flex min-w-0 items-center gap-2 rounded-lg border border-white/40 bg-white/[0.26] px-3 py-2 text-xs text-muted-foreground backdrop-blur-xl dark:border-white/10 dark:bg-white/[0.07]">
+              {showAppSettings ? (
+                <>
+                  <Settings className="size-3.5 shrink-0 text-foreground" />
+                  <span className="truncate text-foreground">应用设置</span>
+                  <span className="truncate">管理 Worker 与管理员账号</span>
+                </>
+              ) : selected ? (
+                <>
+                  <ActiveIcon className="size-3.5 shrink-0 text-foreground" />
+                  <span className="truncate text-foreground">{selected.name}</span>
+                  <span className="text-muted-foreground/60">/</span>
+                  <span className="truncate">{activeTabMeta.label}</span>
+                </>
+              ) : (
+                <span>等待连接</span>
+              )}
+            </div>
+          </div>
+          <ProjectPromoLinks className="hidden px-3 pb-2 min-[420px]:flex" />
+          <div className="overflow-x-auto px-3 pb-3 [-webkit-overflow-scrolling:touch]">
             {connectionsLoading ? (
               <div className="rounded-lg border border-dashed border-white/[0.45] bg-white/[0.28] p-3 text-sm text-muted-foreground backdrop-blur-xl dark:border-white/10 dark:bg-white/[0.06]" data-motion="panel">连接加载中...</div>
             ) : connections?.length === 0 ? (
@@ -541,7 +569,7 @@ export function Shell() {
         </div>
 
         {showAppSettings ? (
-          <div className="min-h-0 flex-1 overflow-auto p-4 sm:p-5 md:p-6" data-motion="section">
+          <div className="min-h-0 flex-1 overflow-auto p-3 sm:p-5 md:p-6" data-motion="section">
             <AppSettingsPage />
           </div>
         ) : selected ? (
@@ -555,7 +583,7 @@ export function Shell() {
                       key={tab.id}
                       type="button"
                       className={cn(
-                        "flex h-10 shrink-0 items-center gap-2 rounded-lg border px-3 text-sm font-medium shadow-[inset_0_1px_0_hsl(0_0%_100%/0.18)] backdrop-blur-xl transition-colors",
+                        "flex h-9 shrink-0 items-center gap-1.5 rounded-lg border px-2.5 text-xs font-medium shadow-[inset_0_1px_0_hsl(0_0%_100%/0.18)] backdrop-blur-xl transition-colors sm:h-10 sm:gap-2 sm:px-3 sm:text-sm",
                         activeTab === tab.id
                           ? "border-primary/35 bg-primary/90 text-primary-foreground"
                           : "border-transparent text-muted-foreground hover:border-white/40 hover:bg-white/[0.34] hover:text-foreground dark:hover:border-white/10 dark:hover:bg-white/8",
@@ -571,7 +599,7 @@ export function Shell() {
                 })}
               </div>
             </nav>
-            <section className="min-h-0 flex-1 overflow-auto p-4 sm:p-5 md:p-6" data-motion="section">
+            <section className="min-h-0 flex-1 overflow-auto p-3 sm:p-5 md:p-6" data-motion="section">
               {activeTab === "groups" ? <GroupsPanel connectionId={selected.id} /> : null}
               {activeTab === "service-status" ? <ServiceStatusPanel connectionId={selected.id} /> : null}
               {activeTab === "bl-sync" ? <BlSyncPanel connectionId={selected.id} /> : null}

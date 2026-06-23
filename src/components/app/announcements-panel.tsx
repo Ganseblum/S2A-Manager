@@ -584,9 +584,9 @@ export function AnnouncementsPanel({ connectionId }: { connectionId: number }) {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h2 className="text-lg font-semibold">公告管理</h2>
-        <div className="flex flex-wrap items-center justify-end gap-2">
+        <div className="flex w-full flex-wrap gap-2 sm:w-auto sm:items-center sm:justify-end [&>button]:flex-1 sm:[&>button]:flex-none">
           <Button variant="outline" size="sm" onClick={handleRefresh} disabled={isFetching || rulesQuery.isFetching}>
             {isFetching || rulesQuery.isFetching ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-1 h-4 w-4" />}
             刷新
@@ -699,18 +699,18 @@ export function AnnouncementsPanel({ connectionId }: { connectionId: number }) {
               <Input type="date" value={filters.createdTo} onChange={(e) => setFilters((current) => ({ ...current, createdTo: e.target.value }))} />
             </div>
             <div className="flex items-end">
-              <Button variant="outline" type="button" onClick={resetFilters}>
+              <Button variant="outline" type="button" className="w-full sm:w-auto" onClick={resetFilters}>
                 <X className="h-4 w-4" />
                 清空
               </Button>
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-border/70 px-3 py-2">
+          <div className="flex flex-col gap-3 rounded-md border border-border/70 px-3 py-2 sm:flex-row sm:items-center sm:justify-between">
             <div className="text-sm text-muted-foreground">
               已筛选 {filteredAnnouncements.length} / 共 {list.length} 条，时间：{formatRangeLabel(filters.createdFrom, filters.createdTo)}，已选 {selectedCount} 条
             </div>
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="flex flex-wrap gap-2 sm:items-center [&>button]:flex-1 sm:[&>button]:flex-none">
               <Button variant="outline" size="sm" onClick={() => openBulkStatus("archived")} disabled={selectedCount === 0 || anyBulkPending}>
                 <Archive className="h-4 w-4" />
                 归档

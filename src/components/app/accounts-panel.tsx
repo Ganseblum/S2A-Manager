@@ -1427,9 +1427,9 @@ export function AccountsPanel({ connectionId }: { connectionId: number }) {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h2 className="text-lg font-semibold">账号调度管理</h2>
-        <div className="flex items-center gap-2">
+        <div className="flex w-full flex-wrap gap-2 sm:w-auto sm:items-center sm:justify-end [&>button]:flex-1 sm:[&>button]:flex-none">
           <Button size="sm" onClick={openCreate} disabled={isSaving}>
             <Plus className="mr-1 h-4 w-4" />
             新增账号
@@ -1531,7 +1531,7 @@ export function AccountsPanel({ connectionId }: { connectionId: number }) {
               </div>
             </div>
             <div className="space-y-3 rounded-md border border-border/70 p-4">
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid gap-3 sm:grid-cols-2">
                 <div>
                   <div className="text-xs text-muted-foreground">预警阈值</div>
                   <div className="mt-1 text-2xl font-semibold">{Object.keys(balanceThresholdsQuery.data ?? {}).length}</div>
@@ -1631,7 +1631,7 @@ export function AccountsPanel({ connectionId }: { connectionId: number }) {
               </div>
             </div>
             <div className="space-y-3 rounded-md border border-border/70 p-4">
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid gap-3 sm:grid-cols-2">
                 <div>
                   <div className="text-xs text-muted-foreground">命中账号</div>
                   <div className="mt-1 text-2xl font-semibold">{priorityRuleAccountCount}</div>
@@ -1744,7 +1744,7 @@ export function AccountsPanel({ connectionId }: { connectionId: number }) {
                 <Label>平台</Label>
                 <Input value={form.platform} onChange={(e) => setFormValue("platform", e.target.value)} disabled={formMode === "edit"} placeholder="anthropic / openai / gemini / antigravity" />
               </div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid gap-3 sm:grid-cols-2">
                 <div className="space-y-2">
                   <Label>类型</Label>
                   <Select value={form.type} onValueChange={(value) => setFormValue("type", value as AccountType)}>
@@ -1768,7 +1768,7 @@ export function AccountsPanel({ connectionId }: { connectionId: number }) {
                 <Label>备注</Label>
                 <Textarea value={form.notes} onChange={(e) => setFormValue("notes", e.target.value)} rows={3} />
               </div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid gap-3 sm:grid-cols-2">
                 <div className="space-y-2">
                   <Label>账号倍率</Label>
                   <Input type="number" min="0" step="any" value={form.rateMultiplier} onChange={(e) => setFormValue("rateMultiplier", e.target.value)} />
@@ -1778,7 +1778,7 @@ export function AccountsPanel({ connectionId }: { connectionId: number }) {
                   <Input type="number" min="1" step="1" value={form.proxyId} onChange={(e) => setFormValue("proxyId", e.target.value)} placeholder="无" />
                 </div>
               </div>
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid gap-3 sm:grid-cols-3">
                 <div className="space-y-2">
                   <Label>并发数</Label>
                   <Input type="number" min="0" step="1" value={form.concurrency} onChange={(e) => setFormValue("concurrency", e.target.value)} />
@@ -1796,7 +1796,7 @@ export function AccountsPanel({ connectionId }: { connectionId: number }) {
                 <Label>过期时间</Label>
                 <Input type="datetime-local" value={form.expiresAt} onChange={(e) => setFormValue("expiresAt", e.target.value)} />
               </div>
-              <div className="flex items-center justify-between rounded-md border border-border/70 px-3 py-2">
+              <div className="flex items-center justify-between gap-3 rounded-md border border-border/70 px-3 py-2">
                 <Label htmlFor="account-schedulable">参与调度</Label>
                 <Switch
                   id="account-schedulable"
@@ -1807,18 +1807,18 @@ export function AccountsPanel({ connectionId }: { connectionId: number }) {
                   }}
                 />
               </div>
-              <div className="flex items-center justify-between rounded-md border border-border/70 px-3 py-2">
+              <div className="flex items-center justify-between gap-3 rounded-md border border-border/70 px-3 py-2">
                 <Label htmlFor="account-auto-pause">过期后自动暂停</Label>
                 <Switch id="account-auto-pause" checked={form.autoPauseOnExpired} onCheckedChange={(checked) => setFormValue("autoPauseOnExpired", checked)} />
               </div>
-              <div className="flex items-center justify-between rounded-md border border-border/70 px-3 py-2">
+              <div className="flex items-center justify-between gap-3 rounded-md border border-border/70 px-3 py-2">
                 <Label htmlFor="account-mixed-risk">确认混合渠道风险</Label>
                 <Switch id="account-mixed-risk" checked={form.confirmMixedChannelRisk} onCheckedChange={(checked) => setFormValue("confirmMixedChannelRisk", checked)} />
               </div>
             </div>
 
             <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid gap-3 sm:grid-cols-2">
                 <div className="space-y-2">
                   <Label>API Key</Label>
                   <Input
@@ -1988,7 +1988,7 @@ export function AccountsPanel({ connectionId }: { connectionId: number }) {
 
           {testDialog ? (
             <div className="space-y-4">
-              <div className="flex items-center justify-between rounded-md border border-border/70 px-3 py-2 text-sm">
+              <div className="flex items-center justify-between gap-3 rounded-md border border-border/70 px-3 py-2 text-sm">
                 <span className="min-w-0 truncate font-medium">{testDialog.account.name ?? testDialog.account.username ?? `#${testDialog.account.id}`}</span>
                 <Badge variant="secondary">{[testDialog.account.platform, testDialog.account.type ?? testDialog.account.channel_type].filter(Boolean).join(" / ") || "account"}</Badge>
               </div>

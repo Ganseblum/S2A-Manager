@@ -34,7 +34,7 @@ const DialogContent = React.forwardRef<
     <DialogPrimitive.Content
       ref={ref}
       className={cn(
-        "fixed left-[50%] top-[50%] z-50 grid max-h-[calc(100dvh-2rem)] w-[calc(100vw-2rem)] max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 overflow-y-auto rounded-xl border border-white/[0.55] bg-white/70 p-5 shadow-[inset_0_1px_0_hsl(0_0%_100%/0.4),0_30px_100px_hsl(217_34%_35%/0.24)] backdrop-blur-2xl duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 sm:p-6 dark:border-white/10 dark:bg-zinc-950/[0.72] dark:shadow-[inset_0_1px_0_hsl(0_0%_100%/0.08),0_34px_110px_hsl(0_0%_0%/0.62)]",
+        "fixed left-[50%] top-[50%] z-50 grid max-h-[calc(100dvh-0.75rem)] w-[calc(100vw-0.75rem)] max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 overflow-y-auto rounded-lg border border-white/[0.55] bg-white/70 p-4 shadow-[inset_0_1px_0_hsl(0_0%_100%/0.4),0_30px_100px_hsl(217_34%_35%/0.24)] backdrop-blur-2xl duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 sm:max-h-[calc(100dvh-2rem)] sm:w-[calc(100vw-2rem)] sm:rounded-xl sm:p-6 dark:border-white/10 dark:bg-zinc-950/[0.72] dark:shadow-[inset_0_1px_0_hsl(0_0%_100%/0.08),0_34px_110px_hsl(0_0%_0%/0.62)]",
         className,
       )}
       data-motion="dialog"
@@ -56,7 +56,7 @@ const DialogHeader = ({ className, ...props }: React.HTMLAttributes<HTMLDivEleme
 DialogHeader.displayName = "DialogHeader";
 
 const DialogFooter = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (
-  <div className={cn("flex flex-col-reverse gap-2 sm:flex-row sm:justify-end sm:gap-0 sm:space-x-2", className)} {...props} />
+  <div className={cn("flex flex-col-reverse gap-2 sm:flex-row sm:justify-end sm:gap-0 sm:space-x-2 [&>button]:w-full sm:[&>button]:w-auto", className)} {...props} />
 );
 DialogFooter.displayName = "DialogFooter";
 

@@ -304,9 +304,9 @@ export function GroupsPanel({ connectionId }: { connectionId: number }) {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h2 className="text-lg font-semibold">分组倍率管理</h2>
-        <div className="flex items-center gap-2">
+        <div className="flex w-full flex-wrap gap-2 sm:w-auto sm:items-center sm:justify-end [&>button]:flex-1 sm:[&>button]:flex-none">
           <Button size="sm" onClick={openCreate} disabled={isSaving}>
             <Plus className="mr-1 h-4 w-4" />
             新增分组
