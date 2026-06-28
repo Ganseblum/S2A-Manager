@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "next dev -p 3000",
     "build": "prisma generate && next build",
-    "start": "next start -p 3000",
+    "start": "next start",
     "lint": "eslint src --ext .ts,.tsx --no-eslintrc --config .eslintrc.json --resolve-plugins-relative-to .",
     "prisma:generate": "prisma generate",
     "prisma:push": "prisma db push",

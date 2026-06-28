@@ -36,7 +36,7 @@ export default function SetupPage() {
           <CardHeader>
             <BrandMark className="mb-3 size-12 text-slate-900 dark:text-white" />
             <CardTitle className="text-2xl">初始设置</CardTitle>
-            <CardDescription>创建首个管理员账号，随后进入管理台。源码见 langrenjh-alt/S2A-Manager，SUB2API 中转站推荐 z30.top。</CardDescription>
+            <CardDescription>创建首个管理员账号，随后进入管理台。源码见 langrenjh-alt/S2A-Manager。</CardDescription>
           </CardHeader>
           <CardContent>
             <form
