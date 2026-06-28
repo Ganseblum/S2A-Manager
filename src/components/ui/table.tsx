@@ -23,13 +23,31 @@ const TableRow = React.forwardRef<HTMLTableRowElement, React.HTMLAttributes<HTML
 ));
 TableRow.displayName = "TableRow";
 
-const TableHead = React.forwardRef<HTMLTableCellElement, React.ThHTMLAttributes<HTMLTableCellElement>>(({ className, ...props }, ref) => (
-  <th ref={ref} className={cn("h-9 whitespace-nowrap bg-white/[0.38] px-2.5 text-left align-middle text-xs font-medium text-muted-foreground sm:h-10 sm:px-3 dark:bg-white/[0.06]", className)} {...props} />
+const TableHead = React.forwardRef<HTMLTableCellElement, React.ThHTMLAttributes<HTMLTableCellElement> & { sticky?: number }>(({ className, sticky, style, ...props }, ref) => (
+  <th
+    ref={ref}
+    className={cn(
+      "h-9 whitespace-nowrap bg-white/[0.38] px-2.5 text-left align-middle text-xs font-medium text-muted-foreground sm:h-10 sm:px-3 dark:bg-white/[0.06]",
+      sticky !== undefined && "sticky z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]",
+      className
+    )}
+    style={{ ...style, left: sticky !== undefined ? sticky : undefined, position: sticky !== undefined ? "sticky" : undefined }}
+    {...props}
+  />
 ));
 TableHead.displayName = "TableHead";
 
-const TableCell = React.forwardRef<HTMLTableCellElement, React.TdHTMLAttributes<HTMLTableCellElement>>(({ className, ...props }, ref) => (
-  <td ref={ref} className={cn("p-2.5 align-middle sm:p-3", className)} {...props} />
+const TableCell = React.forwardRef<HTMLTableCellElement, React.TdHTMLAttributes<HTMLTableCellElement> & { sticky?: number }>(({ className, sticky, style, ...props }, ref) => (
+  <td
+    ref={ref}
+    className={cn(
+      "p-2.5 align-middle sm:p-3",
+      sticky !== undefined && "sticky z-10 bg-white dark:bg-zinc-950",
+      className
+    )}
+    style={{ ...style, left: sticky !== undefined ? sticky : undefined, position: sticky !== undefined ? "sticky" : undefined }}
+    {...props}
+  />
 ));
 TableCell.displayName = "TableCell";
 

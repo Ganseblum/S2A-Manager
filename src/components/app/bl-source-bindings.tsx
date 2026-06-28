@@ -186,10 +186,6 @@ export const BlSourceBindingSelector = memo(function BlSourceBindingSelector({
     () => (selectionAffectsList ? allSelectedKeySignature : ""),
     [allSelectedKeySignature, selectionAffectsList],
   );
-  const allSelectedKeys = useMemo(
-    () => new Set(allSelectedKeySignature ? allSelectedKeySignature.split("|") : []),
-    [allSelectedKeySignature],
-  );
   const selectedFilterKeys = useMemo(
     () => (selectedKeySignature ? new Set(selectedKeySignature.split("|")) : null),
     [selectedKeySignature],
@@ -242,18 +238,8 @@ export const BlSourceBindingSelector = memo(function BlSourceBindingSelector({
   }, [platformFilter, rates, search, selectedFilterKeys, selectionFilter, siteFilter, sortBy]);
 
   const visibleRates = useMemo(() => {
-    const selectedRates: BlRateOption[] = [];
-    const otherRates: BlRateOption[] = [];
-    for (const rate of filteredRates) {
-      if (allSelectedKeys.has(rateSourceKey(rate))) {
-        selectedRates.push(rate);
-      } else {
-        otherRates.push(rate);
-      }
-    }
-    const remainingSlots = Math.max(MAX_RENDERED_SOURCE_ROWS - selectedRates.length, 0);
-    return [...selectedRates, ...otherRates.slice(0, remainingSlots)];
-  }, [allSelectedKeys, filteredRates]);
+    return filteredRates.slice(0, MAX_RENDERED_SOURCE_ROWS);
+  }, [filteredRates]);
   const hiddenFilteredCount = Math.max(filteredRates.length - visibleRates.length, 0);
 
   const toggle = useCallback((rate: BlRateOption, checked: boolean) => {
