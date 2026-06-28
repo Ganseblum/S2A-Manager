@@ -1,10 +1,9 @@
 "use client";
 
-import { ExternalLink, Github, Globe2 } from "lucide-react";
+import { ExternalLink, Github } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const projectUrl = "https://github.com/langrenjh-alt/S2A-Manager";
-const relayUrl = "https://z30.top";
 
 type ProjectPromoLinksProps = {
   className?: string;
@@ -22,11 +21,6 @@ export function ProjectPromoLinks({ className, stacked = false }: ProjectPromoLi
       <a href={projectUrl} target="_blank" rel="noreferrer" className={linkClass} title="打开 S2A Manager GitHub 仓库" data-motion="control" data-motion-hover="lift">
         <Github className="size-3.5 shrink-0" />
         <span className="truncate">GitHub: langrenjh-alt/S2A-Manager</span>
-        <ExternalLink className="size-3 shrink-0 opacity-70" />
-      </a>
-      <a href={relayUrl} target="_blank" rel="noreferrer" className={linkClass} title="访问 SUB2API 中转站 z30.top" data-motion="control" data-motion-hover="lift">
-        <Globe2 className="size-3.5 shrink-0" />
-        <span className="truncate">SUB2API 中转站：z30.top</span>
         <ExternalLink className="size-3 shrink-0 opacity-70" />
       </a>
     </div>

@@ -610,7 +610,7 @@ export function Shell() {
             <div className="codex-panel max-w-md rounded-xl p-6 text-center sm:p-8" data-motion="card" data-motion-hover="lift">
               <BrandMark className="mx-auto size-14 text-slate-900 dark:text-white" />
               <h2 className="mt-4 text-lg font-semibold">添加第一个 Sub2API 连接</h2>
-              <p className="mt-2 text-sm text-muted-foreground">连接后即可管理分组倍率、账号调度、公告和站点设置。可参考官方仓库，也可访问 z30.top 体验 SUB2API 中转服务。</p>
+              <p className="mt-2 text-sm text-muted-foreground">连接后即可管理分组倍率、账号调度、公告和站点设置。可参考官方仓库了解更多。</p>
               <ProjectPromoLinks stacked className="mt-4 text-left" />
               <Button className="mt-5" onClick={openCreateConnection}>
                 <Plus className="size-4" />

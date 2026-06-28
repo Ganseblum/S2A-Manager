@@ -36,7 +36,7 @@ export default function LoginPage() {
           <CardHeader>
             <BrandMark className="mb-3 size-12 text-slate-900 dark:text-white" />
             <CardTitle className="text-2xl">S2A Manager</CardTitle>
-            <CardDescription>登录后管理 Sub2API 连接、倍率和同步任务。项目仓库 langrenjh-alt/S2A-Manager，SUB2API 中转站推荐 z30.top。</CardDescription>
+            <CardDescription>登录后管理 Sub2API 连接、倍率和同步任务。项目仓库 langrenjh-alt/S2A-Manager。</CardDescription>
           </CardHeader>
           <CardContent>
             <form
