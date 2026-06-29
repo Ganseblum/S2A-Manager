@@ -1,7 +1,7 @@
 ﻿"use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { Loader2, Pencil, Play, Plus, RefreshCw, Save, Trash2 } from "lucide-react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { Clock, Loader2, Pencil, Play, Plus, RefreshCw, Save, Trash2 } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -112,6 +112,65 @@ function ruleSummary(rule?: Omit<GroupRateRule, "groupId"> | null) {
   return `${baseLabel[current.mode]}${offsetText}`;
 }
 
+const ACTION_LABELS: Record<string, string> = {
+  manual_update: "手动编辑",
+  manual_rate_update: "手动更新倍率",
+  apply_rule: "规则应用",
+  manual_sync: "手动同步",
+  auto_sync: "自动同步",
+};
+
+function actionLabel(action: string) {
+  return ACTION_LABELS[action] ?? action;
+}
+
+function formatLogDateTime(value: unknown) {
+  if (!value) return "-";
+  const date = value instanceof Date ? value : new Date(String(value));
+  return Number.isFinite(date.getTime()) ? date.toLocaleString("zh-CN", { hour12: false }) : "-";
+}
+
+type ChangeLogEntry = {
+  id: number;
+  groupId: number;
+  groupName: string;
+  oldRate: number | null;
+  newRate: number;
+  action: string;
+  sourceDetail: string | null;
+  createdAt: Date | string;
+};
+
+function GroupRateChangeLogSection({ groupId, logsByGroup }: { groupId: number; logsByGroup: Map<number, ChangeLogEntry[]> }) {
+  const logs = logsByGroup.get(groupId) ?? [];
+  if (logs.length === 0) {
+    return <div className="text-xs text-muted-foreground">暂无操作日志</div>;
+  }
+  return (
+    <div className="space-y-1.5">
+      <div className="mb-2 text-xs font-medium text-muted-foreground">操作日志</div>
+      {logs.map((log) => (
+        <div key={log.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded px-2 py-1.5 text-xs hover:bg-muted/50">
+          <span className="text-muted-foreground shrink-0">{formatLogDateTime(log.createdAt)}</span>
+          <span className="rounded bg-muted px-1.5 py-0.5 font-medium shrink-0">{actionLabel(log.action)}</span>
+          <span className="font-mono shrink-0">
+            {log.oldRate !== null ? (
+              <>
+                <span className="text-muted-foreground">{formatRate(log.oldRate)}</span>
+                <span className="mx-1 text-muted-foreground">→</span>
+              </>
+            ) : null}
+            <span>{formatRate(log.newRate)}</span>
+          </span>
+          {log.sourceDetail ? (
+            <span className="text-muted-foreground truncate max-w-[200px]" title={log.sourceDetail}>{log.sourceDetail}</span>
+          ) : null}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export function GroupsPanel({ connectionId }: { connectionId: number }) {
   const utils = trpc.useUtils();
   const { showToast } = useToast();
@@ -130,6 +189,7 @@ export function GroupsPanel({ connectionId }: { connectionId: number }) {
   const [sourceBindings, setSourceBindings] = useState<BlBindingValue[]>([]);
   const [formError, setFormError] = useState("");
   const [deleteError, setDeleteError] = useState("");
+  const [expandedLogGroupId, setExpandedLogGroupId] = useState<number | null>(null);
 
   const normalizedGroups = useMemo(() => normalizeGroups(groups), [groups]);
   const groupIds = useMemo(() => normalizedGroups.map((group) => group.id).filter((id) => Number.isInteger(id) && id > 0), [normalizedGroups]);
@@ -138,6 +198,19 @@ export function GroupsPanel({ connectionId }: { connectionId: number }) {
     { enabled: groupIds.length > 0, staleTime: 30_000, refetchOnWindowFocus: false },
   );
   const blRates = useMemo<BlRateOption[]>(() => (Array.isArray(rates) ? rates : []), [rates]);
+  const { data: changeLogs } = trpc.groups.rateChangeLogs.useQuery(
+    { connectionId, limit: 100 },
+    { staleTime: 30_000, refetchOnWindowFocus: false },
+  );
+  const logsByGroup = useMemo(() => {
+    const map = new Map<number, Array<{ id: number; groupId: number; groupName: string; oldRate: number | null; newRate: number; action: string; sourceDetail: string | null; createdAt: Date | string }>>();
+    for (const log of changeLogs ?? []) {
+      const list = map.get(log.groupId) ?? [];
+      list.push(log);
+      map.set(log.groupId, list);
+    }
+    return map;
+  }, [changeLogs]);
 
   const bindingsByGroup = useMemo(() => {
     const map = new Map<number, BlBindingWithRate[]>();
@@ -371,6 +444,18 @@ export function GroupsPanel({ connectionId }: { connectionId: number }) {
                         size="icon"
                         className="h-8 w-8"
                         onClick={() => {
+                          setExpandedLogGroupId(expandedLogGroupId === group.id ? null : group.id);
+                        }}
+                        title={expandedLogGroupId === group.id ? "收起日志" : "操作日志"}
+                        aria-label={`${group.name} 的操作日志`}
+                      >
+                        <Clock className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        className="h-8 w-8"
+                        onClick={() => {
                           setDeleteGroup(group);
                           setDeleteError("");
                         }}
@@ -381,6 +466,11 @@ export function GroupsPanel({ connectionId }: { connectionId: number }) {
                         <Trash2 className="h-4 w-4 text-destructive" />
                       </Button>
                     </MobileRecordActions>
+                    {expandedLogGroupId === group.id ? (
+                      <div className="mt-3 rounded-md border border-border/70 bg-muted/30 p-3">
+                        <GroupRateChangeLogSection groupId={group.id} logsByGroup={logsByGroup} />
+                      </div>
+                    ) : null}
                   </MobileRecord>
                 );
               })}
@@ -390,12 +480,11 @@ export function GroupsPanel({ connectionId }: { connectionId: number }) {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="w-16">#</TableHead>
-                <TableHead>分组名称</TableHead>
+                <TableHead className="min-w-[160px]" stickyLeft={0}>分组名称</TableHead>
                 <TableHead className="w-28">默认倍率</TableHead>
                 <TableHead>采集源分组 / 生效倍率</TableHead>
                 <TableHead>规则</TableHead>
-                <TableHead className="w-36">操作</TableHead>
+                <TableHead className="w-36" stickyRight={0}>操作</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -410,21 +499,32 @@ export function GroupsPanel({ connectionId }: { connectionId: number }) {
                   const rule = rulesByGroup.get(group.id);
                   const bindings = bindingsByGroup.get(group.id) ?? [];
                   return (
-                    <TableRow key={group.id}>
-                      <TableCell>{idx + 1}</TableCell>
-                      <TableCell className="font-medium">{group.name}</TableCell>
+                    <React.Fragment key={group.id}>
+                    <TableRow>
+                      <TableCell stickyLeft={0} className="font-medium">{group.name}</TableCell>
                       <TableCell className="font-mono">{formatRate(group.rate_multiplier ?? 1)}</TableCell>
                       <TableCell>
                         <BlSourceBadges bindings={bindings} loading={bindingsLoading && groupIds.length > 0} />
                       </TableCell>
                       <TableCell className="max-w-[240px] truncate text-sm">{ruleSummary(rule)}</TableCell>
-                      <TableCell>
+                      <TableCell stickyRight={0}>
                         <div className="flex items-center gap-1">
                           <Button variant="ghost" size="icon" onClick={() => openEdit(group)} title="编辑分组" aria-label={`编辑 ${group.name}`} disabled={isSaving}>
                             <Pencil className="h-4 w-4" />
                           </Button>
                           <Button variant="ghost" size="icon" onClick={() => handleApplyRule(group)} title="应用规则" aria-label={`应用 ${group.name} 的规则`} disabled={applyRule.isPending || !rule?.enabled || bindings.length === 0}>
                             <Play className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => {
+                              setExpandedLogGroupId(expandedLogGroupId === group.id ? null : group.id);
+                            }}
+                            title={expandedLogGroupId === group.id ? "收起日志" : "操作日志"}
+                            aria-label={`${group.name} 的操作日志`}
+                          >
+                            <Clock className="h-4 w-4" />
                           </Button>
                           <Button
                             variant="ghost"
@@ -442,6 +542,16 @@ export function GroupsPanel({ connectionId }: { connectionId: number }) {
                         </div>
                       </TableCell>
                     </TableRow>
+                    {expandedLogGroupId === group.id ? (
+                      <TableRow>
+                        <TableCell colSpan={7} className="bg-muted/20 p-0">
+                          <div className="p-3">
+                            <GroupRateChangeLogSection groupId={group.id} logsByGroup={logsByGroup} />
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ) : null}
+                    </React.Fragment>
                   );
                 })
               )}

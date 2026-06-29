@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { ArrowRightLeft, CheckCircle2, Loader2, Play, Plus, RefreshCw, Save, Search, Trash2, XCircle } from "lucide-react";
+import { ArrowRightLeft, CheckCircle2, Eye, EyeOff, Loader2, Play, Plus, RefreshCw, Save, Search, Trash2, XCircle } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -290,6 +290,7 @@ export function BlSyncPanel({ connectionId }: { connectionId: number }) {
   const [changePageSize, setChangePageSize] = useState(DEFAULT_PAGE_SIZE);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [syncError, setSyncError] = useState("");
+  const [rateTab, setRateTab] = useState<"followed" | "ignored">("followed");
 
   const siteId = selectedSiteId === "__all__" ? undefined : Number(selectedSiteId);
   const changeOffset = (changePage - 1) * changePageSize;
@@ -297,6 +298,8 @@ export function BlSyncPanel({ connectionId }: { connectionId: number }) {
   const { data: rates, isLoading: ratesLoading, refetch: refetchRates } = trpc.bl.rates.useQuery({ connectionId, siteId });
   const { data: changesResult, isLoading: changesLoading } = trpc.bl.changes.useQuery({ connectionId, siteId, limit: changePageSize, offset: changeOffset });
   const { data: groups, isLoading: groupsLoading } = trpc.groups.list.useQuery({ connectionId });
+  const { data: ignoredRates, refetch: refetchIgnoredRates } = trpc.bl.listIgnoredRates.useQuery({ connectionId, siteId });
+  const ignoredIds = useMemo(() => new Set((ignoredRates ?? []).map((row) => `${row.siteId}|${row.groupId}`)), [ignoredRates]);
 
   useEffect(() => {
     setRatePageSize(readStoredPageSize(RATE_PAGE_SIZE_STORAGE_KEY));
@@ -399,6 +402,15 @@ export function BlSyncPanel({ connectionId }: { connectionId: number }) {
       showToast({ title: "同步倍率失败", description: error.message, variant: "error" });
     },
   });
+  const toggleIgnore = trpc.bl.toggleIgnoredRate.useMutation({
+    onSuccess: async () => {
+      await Promise.all([
+        refetchIgnoredRates(),
+        utils.groups.rateChangeLogs.invalidate(),
+      ]);
+    },
+    onError: (error) => showToast({ title: "操作失败", description: error.message, variant: "error" }),
+  });
 
   const sitesList = useMemo<CollectionSite[]>(() => (Array.isArray(sites) ? sites : []), [sites]);
   const ratesList = useMemo<BlRate[]>(() => (Array.isArray(rates) ? rates : []), [rates]);
@@ -423,6 +435,13 @@ export function BlSyncPanel({ connectionId }: { connectionId: number }) {
   const filteredRatesList = useMemo(
     () =>
       ratesList.filter((rate) => {
+        const key = `${rate.site_id}|${rate.group_id}`;
+        const isIgnored = ignoredIds.has(key);
+        if (rateTab === "ignored") {
+          if (!isIgnored) return false;
+        } else {
+          if (isIgnored) return false;
+        }
         const platform = rate.platform?.trim() ?? "";
         if (selectedPlatform !== "__all__") {
           if (selectedPlatform === "__empty__") {
@@ -434,7 +453,7 @@ export function BlSyncPanel({ connectionId }: { connectionId: number }) {
         if (!rateQuery) return true;
         return buildRateSearchText(rate).includes(rateQuery);
       }),
-    [rateQuery, ratesList, selectedPlatform],
+    [rateQuery, ratesList, selectedPlatform, ignoredIds, rateTab],
   );
   const ratesWithKeys = useMemo(() => filteredRatesList.map((rate, index) => ({ key: `${rate.site_id}-${rate.group_id}-${index}`, rate })), [filteredRatesList]);
   const ratePageCount = Math.max(1, Math.ceil(ratesWithKeys.length / ratePageSize));
@@ -454,7 +473,7 @@ export function BlSyncPanel({ connectionId }: { connectionId: number }) {
 
   useEffect(() => {
     setRatePage(1);
-  }, [ratePageSize, rateQuery, selectedPlatform, selectedSiteId]);
+  }, [ratePageSize, rateQuery, selectedPlatform, selectedSiteId, rateTab]);
 
   useEffect(() => {
     if (ratePage > ratePageCount) setRatePage(ratePageCount);
@@ -703,6 +722,32 @@ export function BlSyncPanel({ connectionId }: { connectionId: number }) {
               显示 {ratesWithKeys.length}/{ratesList.length} 条
             </div>
           </div>
+          <div className="flex items-center gap-1 rounded-md border border-border/70 bg-muted/40 p-1">
+            <button
+              type="button"
+              onClick={() => { setRateTab("followed"); setSelectedRateKey(""); }}
+              className={`flex items-center gap-1.5 rounded-sm px-3 py-1.5 text-sm font-medium transition-colors ${
+                rateTab === "followed"
+                  ? "bg-background text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <Eye className="h-3.5 w-3.5" />
+              关注
+            </button>
+            <button
+              type="button"
+              onClick={() => { setRateTab("ignored"); setSelectedRateKey(""); }}
+              className={`flex items-center gap-1.5 rounded-sm px-3 py-1.5 text-sm font-medium transition-colors ${
+                rateTab === "ignored"
+                  ? "bg-background text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <EyeOff className="h-3.5 w-3.5" />
+              不关注
+            </button>
+          </div>
           <div className="flex flex-wrap items-center gap-2">
             <div className="relative w-full sm:w-auto">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -753,7 +798,7 @@ export function BlSyncPanel({ connectionId }: { connectionId: number }) {
                 ))}
               </SelectContent>
             </Select>
-            <Select value={selectedGroupId} onValueChange={setSelectedGroupId} disabled={groupsLoading}>
+            <Select value={selectedGroupId} onValueChange={setSelectedGroupId} disabled={groupsLoading || rateTab === "ignored"}>
               <SelectTrigger className="w-full sm:w-[220px]">
                 <SelectValue placeholder="目标分组" />
               </SelectTrigger>
@@ -769,10 +814,12 @@ export function BlSyncPanel({ connectionId }: { connectionId: number }) {
               {ratesLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
               刷新
             </Button>
-            <Button size="sm" onClick={openConfirm} disabled={!selectedRateKey || !selectedGroupId || sync.isPending}>
-              <ArrowRightLeft className="h-4 w-4" />
-              同步选中倍率
-            </Button>
+            {rateTab === "followed" ? (
+              <Button size="sm" onClick={openConfirm} disabled={!selectedRateKey || !selectedGroupId || sync.isPending}>
+                <ArrowRightLeft className="h-4 w-4" />
+                同步选中倍率
+              </Button>
+            ) : null}
             {(rateQuery || selectedPlatform !== "__all__") ? (
               <Button
                 variant="ghost"
@@ -798,7 +845,11 @@ export function BlSyncPanel({ connectionId }: { connectionId: number }) {
             <div className="p-5 text-sm text-muted-foreground">暂无倍率数据。先执行一次采集。</div>
           ) : ratesWithKeys.length === 0 ? (
             <div className="flex flex-col gap-3 p-5 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
-              <span>没有找到匹配的倍率记录，请调整查找条件。</span>
+              <span>
+                {rateTab === "ignored"
+                  ? "没有标记为「不关注」的倍率记录。在「关注」Tab 中点击眼睛图标即可标记。"
+                  : "没有找到匹配的倍率记录，请调整查找条件。"}
+              </span>
               <Button
                 variant="outline"
                 size="sm"
@@ -822,11 +873,14 @@ export function BlSyncPanel({ connectionId }: { connectionId: number }) {
                     <TableHead className="text-right">写入倍率</TableHead>
                     <TableHead className="text-right">原始倍率</TableHead>
                     <TableHead className="text-right">生效倍率</TableHead>
+                    <TableHead className="w-16 text-center">操作</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {pagedRatesWithKeys.map(({ key, rate }) => {
                     const canSync = getRateValue(rate) !== null;
+                    const rateIgnoreKey = `${rate.site_id}|${rate.group_id}`;
+                    const isIgnored = ignoredIds.has(rateIgnoreKey);
                     return (
                       <TableRow
                         key={key}
@@ -838,13 +892,15 @@ export function BlSyncPanel({ connectionId }: { connectionId: number }) {
                         }}
                       >
                         <TableCell>
-                          <input
-                            type="radio"
-                            checked={selectedRateKey === key}
-                            disabled={!canSync}
-                            onChange={() => setSelectedRateKey(key)}
-                            aria-label="选择采集倍率"
-                          />
+                          {rateTab === "followed" ? (
+                            <input
+                              type="radio"
+                              checked={selectedRateKey === key}
+                              disabled={!canSync}
+                              onChange={() => setSelectedRateKey(key)}
+                              aria-label="选择采集倍率"
+                            />
+                          ) : null}
                         </TableCell>
                         <TableCell className="font-medium">
                           <span className="block">{rate.name || rate.group_id}</span>
@@ -854,6 +910,26 @@ export function BlSyncPanel({ connectionId }: { connectionId: number }) {
                         <TableCell className="text-right font-mono">{formatRate(getRateValue(rate))}</TableCell>
                         <TableCell className="text-right font-mono">{formatRate(rate.rate_multiplier)}</TableCell>
                         <TableCell className="text-right font-mono">{formatRate(getEffectiveRateValue(rate))}</TableCell>
+                        <TableCell className="text-center">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7"
+                            title={isIgnored ? "恢复关注" : "不再关注"}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              toggleIgnore.mutate({
+                                connectionId,
+                                siteId: rate.site_id,
+                                groupId: rate.group_id,
+                                name: rate.name,
+                              });
+                            }}
+                            disabled={toggleIgnore.isPending}
+                          >
+                            {isIgnored ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5 text-muted-foreground" />}
+                          </Button>
+                        </TableCell>
                       </TableRow>
                     );
                   })}

@@ -1,10 +1,11 @@
 import { initTRPC, TRPCError } from "@trpc/server";
 import superjson from "superjson";
 import { getSession } from "@/server/auth";
+import { isMockMode } from "@/server/mock-mode";
 
 export async function createContext() {
   const session = await getSession();
-  return { session };
+  return { session, mockMode: isMockMode() };
 }
 
 export type Context = Awaited<ReturnType<typeof createContext>>;

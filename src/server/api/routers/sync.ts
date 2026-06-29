@@ -2,12 +2,16 @@ import { z } from "zod";
 import { createTRPCRouter, protectedProcedure } from "@/server/api/trpc";
 import { db } from "@/server/db";
 import { cleanupOldLogs, clearLogs, getLogSettings, listSyncLogs, logLevels, normalizeLogLevel, saveLogSettings } from "@/server/sync-logs";
+import * as mock from "@/server/mock-data";
 
 const logLevelSchema = z.enum(logLevels);
 const statusSchema = z.enum(["success", "failed"]);
 
 export const syncRouter = createTRPCRouter({
-  logSettings: protectedProcedure.query(() => getLogSettings()),
+  logSettings: protectedProcedure.query(({ ctx }) => {
+    if (ctx.mockMode) return mock.sync.logSettings;
+    return getLogSettings();
+  }),
   saveLogSettings: protectedProcedure
     .input(z.object({
       enabled: z.boolean(),
@@ -36,7 +40,8 @@ export const syncRouter = createTRPCRouter({
       dateFrom: z.string().optional(),
       dateTo: z.string().optional(),
     }))
-    .query(async ({ input }) => {
+    .query(async ({ ctx, input }) => {
+      if (ctx.mockMode) return mock.sync.logs;
       return listSyncLogs(input);
     }),
   cleanupLogs: protectedProcedure

@@ -180,16 +180,6 @@ export const BlSourceBindingSelector = memo(function BlSourceBindingSelector({
   const [selectionFilter, setSelectionFilter] = useState("__all__");
   const [sortBy, setSortBy] = useState("site-name");
   const selectedKeys = useMemo(() => new Set(value.map(blSourceKey)), [value]);
-  const allSelectedKeySignature = useMemo(() => Array.from(selectedKeys).sort().join("|"), [selectedKeys]);
-  const selectionAffectsList = selectionFilter !== "__all__" || sortBy === "selected";
-  const selectedKeySignature = useMemo(
-    () => (selectionAffectsList ? allSelectedKeySignature : ""),
-    [allSelectedKeySignature, selectionAffectsList],
-  );
-  const selectedFilterKeys = useMemo(
-    () => (selectedKeySignature ? new Set(selectedKeySignature.split("|")) : null),
-    [selectedKeySignature],
-  );
 
   const siteOptions = useMemo(() => {
     const sites = new Map<number, string>();
@@ -210,7 +200,7 @@ export const BlSourceBindingSelector = memo(function BlSourceBindingSelector({
     const query = search.trim().toLowerCase();
     const result = rates.filter((rate) => {
       const key = rateSourceKey(rate);
-      const checked = selectedFilterKeys?.has(key) ?? false;
+      const checked = selectedKeys.has(key);
       if (siteFilter !== "__all__" && String(rate.site_id) !== siteFilter) return false;
       if (platformFilter !== "__all__" && (rate.platform?.trim() || "__empty__") !== platformFilter) return false;
       if (selectionFilter === "selected" && !checked) return false;
@@ -219,12 +209,6 @@ export const BlSourceBindingSelector = memo(function BlSourceBindingSelector({
     });
 
     return result.sort((left, right) => {
-      const leftSelected = selectedFilterKeys?.has(rateSourceKey(left)) ?? false;
-      const rightSelected = selectedFilterKeys?.has(rateSourceKey(right)) ?? false;
-      if (sortBy === "selected") {
-        if (leftSelected !== rightSelected) return leftSelected ? -1 : 1;
-        return compareText(left.name || left.group_id, right.name || right.group_id);
-      }
       if (sortBy === "rate-asc") return rateValue(left) - rateValue(right);
       if (sortBy === "rate-desc") return rateValue(right) - rateValue(left);
       if (sortBy === "group-id") return compareText(left.group_id, right.group_id);
@@ -235,7 +219,7 @@ export const BlSourceBindingSelector = memo(function BlSourceBindingSelector({
       const siteCompare = compareText(left.site_name, right.site_name);
       return siteCompare || compareText(left.name || left.group_id, right.name || right.group_id);
     });
-  }, [platformFilter, rates, search, selectedFilterKeys, selectionFilter, siteFilter, sortBy]);
+  }, [platformFilter, rates, search, selectedKeys, selectionFilter, siteFilter, sortBy]);
 
   const visibleRates = useMemo(() => {
     return filteredRates.slice(0, MAX_RENDERED_SOURCE_ROWS);
@@ -308,7 +292,6 @@ export const BlSourceBindingSelector = memo(function BlSourceBindingSelector({
             <SelectTrigger><SelectValue placeholder="排序" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="site-name">源站 / 名称</SelectItem>
-              <SelectItem value="selected">已选优先</SelectItem>
               <SelectItem value="rate-desc">倍率从高到低</SelectItem>
               <SelectItem value="rate-asc">倍率从低到高</SelectItem>
               <SelectItem value="group-id">分组 ID</SelectItem>

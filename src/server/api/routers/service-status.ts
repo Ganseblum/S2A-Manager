@@ -3,6 +3,7 @@ import { createTRPCRouter, protectedProcedure } from "@/server/api/trpc";
 import { db } from "@/server/db";
 import { cleanupInvalidData } from "@/server/invalid-data-cleanup";
 import { listSyncLogs } from "@/server/sync-logs";
+import * as mock from "@/server/mock-data";
 import { workerRuntimeSettingsFromRows } from "@/server/worker-settings";
 
 const workerOnlineGraceSeconds = 2 * 60;
@@ -26,8 +27,9 @@ export const serviceStatusRouter = createTRPCRouter({
     }),
   overview: protectedProcedure
     .input(z.object({ connectionId: z.number().int().positive().optional() }).optional())
-    .query(async ({ input }) => {
-      const selectedConnectionId = input?.connectionId;
+    .query(async ({ ctx }) => {
+      if (ctx.mockMode) return mock.serviceStatus.overview;
+      const selectedConnectionId = undefined as number | undefined;
       const checkedAt = new Date();
 
       const [

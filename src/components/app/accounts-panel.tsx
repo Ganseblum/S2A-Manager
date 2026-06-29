@@ -693,8 +693,7 @@ const AccountTableRow = memo(function AccountTableRow({
 
   return (
     <TableRow>
-      <TableCell>{index + 1}</TableCell>
-      <TableCell className="max-w-[220px] font-medium">{renderAccountLink(row)}</TableCell>
+      <TableCell stickyLeft={0} className="max-w-[220px] font-medium">{renderAccountLink(row)}</TableCell>
       <TableCell>{[row.platform, row.type ?? row.channel_type].filter(Boolean).join(" / ") || "-"}</TableCell>
       <TableCell>{renderGroups()}</TableCell>
       <TableCell>
@@ -706,7 +705,7 @@ const AccountTableRow = memo(function AccountTableRow({
       <TableCell>{renderBalance()}</TableCell>
       <TableCell>{schedulable ? <Badge variant="success">已启用</Badge> : <Badge variant="secondary">已禁用</Badge>}</TableCell>
       <TableCell className="max-w-[150px] truncate text-sm text-destructive">{row.error ?? row.last_error ?? row.error_message ?? "-"}</TableCell>
-      <TableCell>
+      <TableCell stickyRight={0}>
         <div className="flex gap-1">
           <Button variant="ghost" size="icon" className="h-8 w-8" title="编辑账号" disabled={isSaving} onClick={() => onEdit(row)}>
             <Pencil className="h-4 w-4" />
@@ -1990,8 +1989,7 @@ export function AccountsPanel({ connectionId }: { connectionId: number }) {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="w-16">#</TableHead>
-                  <TableHead>账号 ID / 名称</TableHead>
+                  <TableHead className="min-w-[200px]" stickyLeft={0}>账号 ID / 名称</TableHead>
                   <TableHead>类型</TableHead>
                   <TableHead>分组</TableHead>
                   <TableHead>采集源分组 / 生效倍率</TableHead>
@@ -2001,13 +1999,13 @@ export function AccountsPanel({ connectionId }: { connectionId: number }) {
                   <TableHead className="w-44">账号余额</TableHead>
                   <TableHead>调度状态</TableHead>
                   <TableHead>错误</TableHead>
-                  <TableHead className="w-64">操作</TableHead>
+                  <TableHead className="w-64" stickyRight={0}>操作</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filteredAccountList.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={12} className="text-center text-muted-foreground">
+                    <TableCell colSpan={11} className="text-center text-muted-foreground">
                       {accountEmptyMessage}
                     </TableCell>
                   </TableRow>

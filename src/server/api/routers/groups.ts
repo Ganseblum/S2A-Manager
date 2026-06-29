@@ -6,6 +6,7 @@ import { decrypt } from "@/server/crypto";
 import { Sub2ApiAdminClient } from "@/server/clients/sub2api-admin";
 import { publishRateChangeAnnouncements } from "@/server/announcement-rules";
 import { normalizeRateMultiplier } from "@/server/rates";
+import * as mock from "@/server/mock-data";
 
 const rateMultiplierInput = z.number().finite().gt(0).max(100_000);
 const groupNameInput = z.string().trim().min(1).max(100);
@@ -26,6 +27,32 @@ async function safeLogSync(connectionId: number, action: string, target: string,
   }
 }
 
+async function writeGroupRateChangeLog(params: {
+  connectionId: number;
+  groupId: number;
+  groupName: string;
+  oldRate: number | null;
+  newRate: number;
+  action: string;
+  sourceDetail?: string;
+}) {
+  try {
+    await db.groupRateChangeLog.create({
+      data: {
+        connectionId: params.connectionId,
+        groupId: params.groupId,
+        groupName: params.groupName,
+        oldRate: params.oldRate,
+        newRate: params.newRate,
+        action: params.action,
+        sourceDetail: params.sourceDetail ?? null,
+      },
+    });
+  } catch {
+    // Logging must never hide the primary operation result.
+  }
+}
+
 async function getConnection(id: number) {
   return db.connection.findUniqueOrThrow({ where: { id } });
 }
@@ -33,13 +60,15 @@ async function getConnection(id: number) {
 export const groupsRouter = createTRPCRouter({
   list: protectedProcedure
     .input(z.object({ connectionId: z.number().int().positive() }))
-    .query(async ({ input }) => {
+    .query(async ({ ctx, input }) => {
+      if (ctx.mockMode) return mock.groups.list;
       const conn = await getConnection(input.connectionId);
       return getClient(conn).listGroups();
     }),
   details: protectedProcedure
     .input(z.object({ connectionId: z.number().int().positive(), groupId: z.number().int().positive() }))
-    .query(async ({ input }) => {
+    .query(async ({ ctx, input }) => {
+      if (ctx.mockMode) return mock.groups.details(input.groupId);
       const conn = await getConnection(input.connectionId);
       return getClient(conn).getGroup(input.groupId);
     }),
@@ -88,6 +117,18 @@ export const groupsRouter = createTRPCRouter({
             changedAt: new Date(),
           },
         });
+        const oldRateVal = typeof oldGroup.rate_multiplier === "number" ? oldGroup.rate_multiplier : null;
+        if (oldRateVal !== rateMultiplier) {
+          await writeGroupRateChangeLog({
+            connectionId: input.connectionId,
+            groupId: input.groupId,
+            groupName: group.name ?? input.name,
+            oldRate: oldRateVal,
+            newRate: rateMultiplier,
+            action: "manual_update",
+            sourceDetail: "手动编辑分组",
+          });
+        }
         await safeLogSync(input.connectionId, "update_group", `group:${input.groupId}`, detail, "success");
         return group;
       } catch (error) {
@@ -139,6 +180,18 @@ export const groupsRouter = createTRPCRouter({
             changedAt: new Date(),
           },
         });
+        const oldRateVal = typeof oldGroup.rate_multiplier === "number" ? oldGroup.rate_multiplier : null;
+        if (oldRateVal !== rateMultiplier) {
+          await writeGroupRateChangeLog({
+            connectionId: input.connectionId,
+            groupId: input.groupId,
+            groupName: group.name ?? oldGroup.name,
+            oldRate: oldRateVal,
+            newRate: rateMultiplier,
+            action: "manual_rate_update",
+            sourceDetail: "手动更新倍率",
+          });
+        }
         await safeLogSync(input.connectionId, "update_group_rate_multiplier", `group:${input.groupId}`, { groupId: input.groupId, rateMultiplier }, "success");
         return group;
       } catch (error) {
@@ -149,7 +202,8 @@ export const groupsRouter = createTRPCRouter({
     }),
   rateMultipliers: protectedProcedure
     .input(z.object({ connectionId: z.number().int().positive(), groupId: z.number().int().positive() }))
-    .query(async ({ input }) => {
+    .query(async ({ ctx, input }) => {
+      if (ctx.mockMode) return mock.groups.rateMultipliers(input.groupId);
       const conn = await getConnection(input.connectionId);
       return getClient(conn).getRateMultipliers(input.groupId);
     }),
@@ -185,5 +239,25 @@ export const groupsRouter = createTRPCRouter({
         await safeLogSync(input.connectionId, "clear_user_rate_multipliers", `group:${input.groupId}`, { groupId: input.groupId }, "failed", message);
         throw error;
       }
+    }),
+  rateChangeLogs: protectedProcedure
+    .input(z.object({
+      connectionId: z.number().int().positive(),
+      groupId: z.number().int().positive().optional(),
+      limit: z.number().int().min(1).max(200).default(50),
+    }))
+    .query(async ({ ctx, input }) => {
+      if (ctx.mockMode) {
+        const logs = mock.groups.rateChangeLogs();
+        return input.groupId ? logs.filter((l) => l.groupId === input.groupId).slice(0, input.limit) : logs.slice(0, input.limit);
+      }
+      const where: { connectionId: number; groupId?: number } = { connectionId: input.connectionId };
+      if (input.groupId !== undefined) where.groupId = input.groupId;
+      const logs = await db.groupRateChangeLog.findMany({
+        where,
+        orderBy: { createdAt: "desc" },
+        take: input.limit,
+      });
+      return logs;
     }),
 });

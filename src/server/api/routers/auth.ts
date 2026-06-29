@@ -2,15 +2,23 @@
 import { createTRPCRouter, protectedProcedure, publicProcedure } from "@/server/api/trpc";
 import { attemptLogin, clearSessionCookie, createSessionCookie, isInitialized, setupAdmin } from "@/server/auth";
 import { db } from "@/server/db";
+import * as mock from "@/server/mock-data";
+import { setMockModeCookie } from "@/server/mock-mode";
 
 // ---- Auth Router ----
 export const authRouter = createTRPCRouter({
-  initialized: publicProcedure.query(() => isInitialized()),
-  session: publicProcedure.query(async ({ ctx }) => ({
-    authed: Boolean(ctx.session),
-    email: ctx.session?.email ?? null,
-    initialized: await isInitialized(),
-  })),
+  initialized: publicProcedure.query(async ({ ctx }) => {
+    if (ctx.mockMode) return true;
+    return isInitialized();
+  }),
+  session: publicProcedure.query(async ({ ctx }) => {
+    if (ctx.mockMode) return { authed: true, email: "admin@mock.local", initialized: true };
+    return {
+      authed: Boolean(ctx.session),
+      email: ctx.session?.email ?? null,
+      initialized: await isInitialized(),
+    };
+  }),
   setup: publicProcedure
     .input(z.object({ email: z.string().email("请输入有效邮箱"), password: z.string().min(6, "密码至少6位") }))
     .mutation(async ({ input }) => {
@@ -26,7 +34,8 @@ export const authRouter = createTRPCRouter({
       return { ok: true };
     }),
   logout: protectedProcedure.mutation(() => { clearSessionCookie(); return { ok: true }; }),
-  listUsers: protectedProcedure.query(async () => {
+  listUsers: protectedProcedure.query(async ({ ctx }) => {
+    if (ctx.mockMode) return mock.auth.listUsers;
     return db.adminUser.findMany({ select: { id: true, email: true, createdAt: true }, orderBy: { id: "asc" } });
   }),
   addUser: protectedProcedure
@@ -47,4 +56,11 @@ export const authRouter = createTRPCRouter({
       await db.adminUser.delete({ where: { id: input.id } });
       return { ok: true };
     }),
+  toggleMock: protectedProcedure
+    .input(z.object({ enabled: z.boolean() }))
+    .mutation(({ input }) => {
+      setMockModeCookie(input.enabled);
+      return { mockMode: input.enabled };
+    }),
+  getMockMode: protectedProcedure.query(({ ctx }) => ({ mockMode: ctx.mockMode })),
 });

@@ -23,32 +23,58 @@ const TableRow = React.forwardRef<HTMLTableRowElement, React.HTMLAttributes<HTML
 ));
 TableRow.displayName = "TableRow";
 
-const TableHead = React.forwardRef<HTMLTableCellElement, React.ThHTMLAttributes<HTMLTableCellElement> & { sticky?: number }>(({ className, sticky, style, ...props }, ref) => (
-  <th
-    ref={ref}
-    className={cn(
-      "h-9 whitespace-nowrap bg-white/[0.38] px-2.5 text-left align-middle text-xs font-medium text-muted-foreground sm:h-10 sm:px-3 dark:bg-white/[0.06]",
-      sticky !== undefined && "sticky z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]",
-      className
-    )}
-    style={{ ...style, left: sticky !== undefined ? sticky : undefined, position: sticky !== undefined ? "sticky" : undefined }}
-    {...props}
-  />
-));
+type StickyProps = { stickyLeft?: number; stickyRight?: number };
+
+const TableHead = React.forwardRef<HTMLTableCellElement, React.ThHTMLAttributes<HTMLTableCellElement> & StickyProps>(
+  ({ className, stickyLeft, stickyRight, style, ...props }, ref) => {
+    const isSticky = stickyLeft !== undefined || stickyRight !== undefined;
+    return (
+      <th
+        ref={ref}
+        className={cn(
+          "h-9 whitespace-nowrap bg-white/[0.38] px-2.5 text-left align-middle text-xs font-medium text-muted-foreground sm:h-10 sm:px-3 dark:bg-white/[0.06]",
+          isSticky && "sticky z-10 bg-white/90 backdrop-blur-sm dark:bg-zinc-950/90",
+          stickyLeft !== undefined && "shadow-[2px_0_5px_-2px_rgba(0,0,0,0.08)]",
+          stickyRight !== undefined && "shadow-[-2px_0_5px_-2px_rgba(0,0,0,0.08)]",
+          className
+        )}
+        style={{
+          ...style,
+          position: isSticky ? "sticky" : undefined,
+          left: stickyLeft !== undefined ? stickyLeft : undefined,
+          right: stickyRight !== undefined ? stickyRight : undefined,
+        }}
+        {...props}
+      />
+    );
+  }
+);
 TableHead.displayName = "TableHead";
 
-const TableCell = React.forwardRef<HTMLTableCellElement, React.TdHTMLAttributes<HTMLTableCellElement> & { sticky?: number }>(({ className, sticky, style, ...props }, ref) => (
-  <td
-    ref={ref}
-    className={cn(
-      "p-2.5 align-middle sm:p-3",
-      sticky !== undefined && "sticky z-10 bg-white dark:bg-zinc-950",
-      className
-    )}
-    style={{ ...style, left: sticky !== undefined ? sticky : undefined, position: sticky !== undefined ? "sticky" : undefined }}
-    {...props}
-  />
-));
+const TableCell = React.forwardRef<HTMLTableCellElement, React.TdHTMLAttributes<HTMLTableCellElement> & StickyProps>(
+  ({ className, stickyLeft, stickyRight, style, ...props }, ref) => {
+    const isSticky = stickyLeft !== undefined || stickyRight !== undefined;
+    return (
+      <td
+        ref={ref}
+        className={cn(
+          "p-2.5 align-middle sm:p-3",
+          isSticky && "sticky z-10 bg-white/90 backdrop-blur-sm dark:bg-zinc-950/90",
+          stickyLeft !== undefined && "shadow-[2px_0_5px_-2px_rgba(0,0,0,0.08)]",
+          stickyRight !== undefined && "shadow-[-2px_0_5px_-2px_rgba(0,0,0,0.08)]",
+          className
+        )}
+        style={{
+          ...style,
+          position: isSticky ? "sticky" : undefined,
+          left: stickyLeft !== undefined ? stickyLeft : undefined,
+          right: stickyRight !== undefined ? stickyRight : undefined,
+        }}
+        {...props}
+      />
+    );
+  }
+);
 TableCell.displayName = "TableCell";
 
 export { Table, TableBody, TableCell, TableHead, TableHeader, TableRow };

@@ -6,6 +6,7 @@ import { Sub2ApiAdminClient } from "@/server/clients/sub2api-admin";
 import { executeUpstreamMonitorRule, restoreMonitorRateSources } from "@/server/upstream-monitor";
 import { getWorkerRuntimeSettings } from "@/server/worker-settings";
 import { getAccountId } from "@/server/account-utils";
+import * as mock from "@/server/mock-data";
 
 type AccountRow = {
   id?: number | string | null;
@@ -75,7 +76,8 @@ function resultStats(results: Array<{ status: string }>) {
 export const upstreamMonitorRouter = createTRPCRouter({
   list: protectedProcedure
     .input(z.object({ connectionId: z.number().int().positive() }))
-    .query(async ({ input }) => {
+    .query(async ({ ctx, input }) => {
+      if (ctx.mockMode) return mock.upstreamMonitor.list;
       const connection = await db.connection.findUniqueOrThrow({ where: { id: input.connectionId } });
       const client = getClient(connection);
       const [accountsPayload, rules] = await Promise.all([

@@ -3,6 +3,7 @@ import bcrypt from "bcryptjs";
 import { SignJWT, jwtVerify } from "jose";
 import { db } from "@/server/db";
 import { appSecret } from "@/server/env";
+import { isMockMode } from "@/server/mock-mode";
 
 const COOKIE_NAME = "s2a_session";
 const encoder = new TextEncoder();
@@ -41,6 +42,10 @@ export async function createSessionCookie(email: string) {
 }
 
 export async function getSession() {
+  // Mock 模式自动登录
+  if (isMockMode()) {
+    return { role: "admin" as const, email: "admin@mock.local" };
+  }
   const token = cookies().get(COOKIE_NAME)?.value;
   if (!token) return null;
   try {

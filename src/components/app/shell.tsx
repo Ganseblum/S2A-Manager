@@ -9,10 +9,10 @@ import {
   ChevronLeft,
   ClipboardList,
   Gauge,
-  Layers3,
   Link2,
   ListFilter,
   LogOut,
+  MonitorPlay,
   Plus,
   RadioTower,
   ServerCog,
@@ -269,7 +269,7 @@ function ConnectionCard({
           </span>
         ) : null}
       </div>
-      <div className={cn("mt-3 flex items-center gap-1", compact ? "opacity-100 [&>button]:flex-1 [&>button]:px-1.5" : "opacity-100 md:opacity-0 md:transition-opacity md:group-hover:opacity-100")}>
+      <div className={cn("mt-3 flex items-center gap-1", compact ? "[&>button]:flex-1 [&>button]:px-1.5" : "")}>
         <Button
           type="button"
           variant={active ? "secondary" : "ghost"}
@@ -321,6 +321,8 @@ export function Shell() {
   const { showToast } = useToast();
   const { data: session } = trpc.auth.session.useQuery();
   const { data: connections, isLoading: connectionsLoading } = trpc.connections.list.useQuery();
+  const { data: mockModeData } = trpc.auth.getMockMode.useQuery();
+  const mockEnabled = mockModeData?.mockMode ?? false;
 
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [activeTab, setActiveTab] = useState<Tab>("groups");
@@ -333,6 +335,35 @@ export function Shell() {
     onSuccess: async () => {
       await utils.auth.session.invalidate();
       router.replace("/login");
+      router.refresh();
+    },
+  });
+  const toggleMock = trpc.auth.toggleMock.useMutation({
+    onSuccess: async () => {
+      await Promise.all([
+        utils.auth.getMockMode.invalidate(),
+        utils.auth.session.invalidate(),
+        utils.connections.list.invalidate(),
+        utils.groups.list.invalidate(),
+        utils.groups.rateChangeLogs.invalidate(),
+        utils.bl.collectionSites.invalidate(),
+        utils.bl.rates.invalidate(),
+        utils.bl.bindings.invalidate(),
+        utils.bl.platforms.invalidate(),
+        utils.bl.changes.invalidate(),
+        utils.bl.listIgnoredRates.invalidate(),
+        utils.accounts.list.invalidate(),
+        utils.accounts.balances.invalidate(),
+        utils.upstreamMonitor.list.invalidate(),
+        utils.announcements.rules.invalidate(),
+        utils.announcements.list.invalidate(),
+        utils.sync.logs.invalidate(),
+        utils.sync.logSettings.invalidate(),
+        utils.siteSettings.get.invalidate(),
+        utils.serviceStatus.overview.invalidate(),
+        utils.appSettings.get.invalidate(),
+        utils.auth.listUsers.invalidate(),
+      ]);
       router.refresh();
     },
   });
@@ -426,33 +457,20 @@ export function Shell() {
 
   return (
     <div className="app-shell flex h-dvh min-h-0 flex-col overflow-hidden text-foreground md:flex-row" data-motion="shell">
-      <aside className="hidden w-[312px] shrink-0 flex-col border-r border-white/[0.35] bg-white/[0.36] backdrop-blur-2xl dark:border-white/10 dark:bg-white/[0.06] md:flex" data-motion="sidebar">
+      <aside className="hidden w-[280px] shrink-0 flex-col border-r border-white/[0.35] bg-white/[0.36] backdrop-blur-2xl dark:border-white/10 dark:bg-white/[0.06] md:flex" data-motion="sidebar">
         <div className="border-b border-white/[0.35] px-5 py-4 dark:border-white/10">
-          <div className="mac-window-controls mb-4" aria-hidden="true">
-            <span className="bg-[#ff5f57]" />
-            <span className="bg-[#ffbd2e]" />
-            <span className="bg-[#28c840]" />
-          </div>
           <div className="flex items-center gap-3">
-            <BrandMark className="size-11 text-slate-900 dark:text-white" />
+            <BrandMark className="size-10 text-slate-900 dark:text-white" />
             <div className="min-w-0">
               <h1 className="truncate text-base font-semibold">S2A Manager</h1>
               <p className="truncate text-xs text-muted-foreground">Sub2API control plane</p>
             </div>
           </div>
-          <div className="mt-4 flex items-center gap-2 rounded-lg border border-white/40 bg-white/[0.34] px-3 py-2 text-xs text-muted-foreground backdrop-blur-xl dark:border-white/10 dark:bg-white/[0.08]" data-motion="panel">
-            <Layers3 className="size-3.5 text-foreground" />
-            <span className="truncate">统一管理倍率、账号与同步任务</span>
-          </div>
-          <ProjectPromoLinks stacked className="mt-3" />
         </div>
 
-        <div className="flex items-center justify-between px-4 py-3" data-motion="panel">
-          <div>
-            <p className="text-xs font-medium uppercase text-muted-foreground">Connections</p>
-            <p className="text-xs text-muted-foreground/80">{connections?.length ?? 0} 个站点</p>
-          </div>
-          <Button size="icon" variant="outline" onClick={openCreateConnection} title="添加连接">
+        <div className="flex items-center justify-between px-4 py-2.5" data-motion="panel">
+          <p className="text-xs font-medium text-muted-foreground">{connections?.length ?? 0} 个站点连接</p>
+          <Button size="icon" variant="outline" className="size-8" onClick={openCreateConnection} title="添加连接">
             <Plus className="size-4" />
           </Button>
         </div>
@@ -467,6 +485,10 @@ export function Shell() {
           ) : (
             <div className="space-y-2">{connections?.map((connection) => renderConnectionCard(connection))}</div>
           )}
+        </div>
+
+        <div className="shrink-0 border-t border-white/[0.35] px-4 py-2.5 dark:border-white/10">
+          <ProjectPromoLinks className="text-xs" />
         </div>
       </aside>
 
@@ -500,6 +522,15 @@ export function Shell() {
                 {session?.email}
               </span>
               <ThemeToggle />
+              <Button
+                variant={mockEnabled ? "secondary" : "ghost"}
+                size="icon"
+                onClick={() => toggleMock.mutate({ enabled: !mockEnabled })}
+                disabled={toggleMock.isPending}
+                title={mockEnabled ? "Mock 模式已开启 - 点击关闭" : "Mock 模式已关闭 - 点击开启"}
+              >
+                <MonitorPlay className={mockEnabled ? "size-4 text-orange-500" : "size-4"} />
+              </Button>
               <Button variant={showAppSettings ? "secondary" : "ghost"} size="icon" onClick={() => setShowAppSettings((value) => !value)} title="应用设置">
                 {showAppSettings ? <ChevronLeft className="size-4" /> : <Settings className="size-4" />}
               </Button>
@@ -524,6 +555,16 @@ export function Shell() {
               </div>
               <div className="flex shrink-0 items-center gap-1">
                 <ThemeToggle className="size-8" />
+                <Button
+                  variant={mockEnabled ? "secondary" : "ghost"}
+                  size="icon"
+                  className="size-8"
+                  onClick={() => toggleMock.mutate({ enabled: !mockEnabled })}
+                  disabled={toggleMock.isPending}
+                  title={mockEnabled ? "Mock 模式已开启 - 点击关闭" : "Mock 模式已关闭 - 点击开启"}
+                >
+                  <MonitorPlay className={mockEnabled ? "size-4 text-orange-500" : "size-4"} />
+                </Button>
                 <Button variant={showAppSettings ? "secondary" : "ghost"} size="icon" className="size-8" onClick={() => setShowAppSettings((value) => !value)} title="应用设置">
                   {showAppSettings ? <ChevronLeft className="size-4" /> : <Settings className="size-4" />}
                 </Button>

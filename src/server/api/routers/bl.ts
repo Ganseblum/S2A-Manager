@@ -24,6 +24,7 @@ import { publishRateChangeAnnouncements } from "@/server/announcement-rules";
 import { normalizeRateMultiplier } from "@/server/rates";
 import { getAccountId, getAccountName, getAccountRate } from "@/server/account-utils";
 import { groupMonitorRateExclusionsBySource, monitorGroupRateExclusionKey, readActiveMonitorRateExclusions } from "@/server/upstream-monitor-rate-exclusions";
+import * as mock from "@/server/mock-data";
 
 const rateMultiplierInput = z.number().finite().gt(0).max(100_000);
 
@@ -46,6 +47,42 @@ async function safeLogSync(connectionId: number, action: string, target: string,
   } catch {
     // Logging must never hide the remote write result from the caller.
   }
+}
+
+async function writeGroupRateChangeLog(params: {
+  connectionId: number;
+  groupId: number;
+  groupName: string;
+  oldRate: number | null;
+  newRate: number;
+  action: string;
+  sourceDetail?: string;
+}) {
+  try {
+    await db.groupRateChangeLog.create({
+      data: {
+        connectionId: params.connectionId,
+        groupId: params.groupId,
+        groupName: params.groupName,
+        oldRate: params.oldRate,
+        newRate: params.newRate,
+        action: params.action,
+        sourceDetail: params.sourceDetail ?? null,
+      },
+    });
+  } catch {
+    // Logging must never hide the primary operation result.
+  }
+}
+
+function formatGroupRateChangeSource(params: { sourceSiteName?: string | null; sourceGroupId?: string | null; sourceGroupName?: string | null }): string {
+  const parts: string[] = [];
+  if (params.sourceSiteName) parts.push(params.sourceSiteName);
+  if (params.sourceGroupId) {
+    const label = params.sourceGroupName ? `${params.sourceGroupName} (#${params.sourceGroupId})` : `#${params.sourceGroupId}`;
+    parts.push(label);
+  }
+  return parts.join(" / ") || "未知来源";
 }
 
 async function applyRulesAfterCollection(connectionId: number, sourceSiteIds: number[], changedRunIds?: number[]) {
@@ -86,13 +123,17 @@ function newestChangesFirst(changes: BlChange[]) {
 export const blRouter = createTRPCRouter({
   sites: protectedProcedure
     .input(z.object({ connectionId: z.number().int().positive().optional() }).optional())
-    .query(async ({ input }) => {
+    .query(async ({ ctx, input }) => {
+      if (ctx.mockMode) return mock.bl.sites;
       const client = getBlClient(input?.connectionId);
       return client.fetchSites();
     }),
   collectionSites: protectedProcedure
     .input(z.object({ connectionId: z.number().int().positive().optional() }).optional())
-    .query(async ({ input }) => listBlCollectionSites(input?.connectionId)),
+    .query(async ({ ctx, input }) => {
+      if (ctx.mockMode) return mock.bl.collectionSites;
+      return listBlCollectionSites(input?.connectionId);
+    }),
   saveCollectionSite: protectedProcedure
     .input(z.object({
       id: z.number().int().positive().optional(),
@@ -146,10 +187,16 @@ export const blRouter = createTRPCRouter({
     }),
   platforms: protectedProcedure
     .input(z.object({ connectionId: z.number().int().positive().optional() }).optional())
-    .query(({ input }) => blCollectionPlatforms(input?.connectionId)),
+    .query(({ ctx, input }) => {
+      if (ctx.mockMode) return mock.bl.platforms;
+      return blCollectionPlatforms(input?.connectionId);
+    }),
   health: protectedProcedure
     .input(z.object({ connectionId: z.number().int().positive().optional() }).optional())
-    .query(({ input }) => blCollectionHealth(input?.connectionId)),
+    .query(({ ctx, input }) => {
+      if (ctx.mockMode) return { total_sites: 3, online: 3, offline: 0 };
+      return blCollectionHealth(input?.connectionId);
+    }),
   changes: protectedProcedure
     .input(z.object({
       connectionId: z.number().int().positive().optional(),
@@ -157,7 +204,8 @@ export const blRouter = createTRPCRouter({
       limit: z.number().int().min(1).max(200).default(100),
       offset: z.number().int().min(0).default(0),
     }))
-    .query(async ({ input }) => {
+    .query(async ({ ctx, input }) => {
+      if (ctx.mockMode) return mock.bl.changes;
       const client = getBlClient(input.connectionId);
       const [changes, total] = await Promise.all([
         client.fetchChanges(input.siteId, input.limit, input.offset),
@@ -167,7 +215,8 @@ export const blRouter = createTRPCRouter({
     }),
   rates: protectedProcedure
     .input(z.object({ connectionId: z.number().int().positive().optional(), siteId: z.number().int().positive().optional() }))
-    .query(async ({ input }) => {
+    .query(async ({ ctx, input }) => {
+      if (ctx.mockMode) return mock.bl.rates;
       const client = getBlClient(input.connectionId);
       return client.fetchRates(input.siteId);
     }),
@@ -177,7 +226,8 @@ export const blRouter = createTRPCRouter({
       targetType: blTargetTypeSchema,
       targetIds: z.array(z.number().int().positive()).optional(),
     }))
-    .query(async ({ input }) => {
+    .query(async ({ ctx, input }) => {
+      if (ctx.mockMode) return mock.bl.bindings;
       let blClient: BlPublicClient | null = null;
       let rateError: string | null = null;
 
@@ -308,6 +358,19 @@ export const blRouter = createTRPCRouter({
             changedAt: new Date(),
           },
         });
+        await writeGroupRateChangeLog({
+          connectionId: input.connectionId,
+          groupId: input.groupId,
+          groupName: group.name ?? targetGroup.name,
+          oldRate: currentRate,
+          newRate: rateMultiplier,
+          action: "apply_rule",
+          sourceDetail: formatGroupRateChangeSource({
+            sourceSiteName: bindings[0]?.sourceSiteName,
+            sourceGroupId: bindings[0]?.sourceGroupId,
+            sourceGroupName: bindings[0]?.sourceGroupName,
+          }),
+        });
         await safeLogSync(input.connectionId, "apply_bl_group_rate_rule", `group:${input.groupId}`, detail, "success");
         return { ok: true, group, rule, sources, rateMultiplier };
       } catch (error) {
@@ -404,6 +467,19 @@ export const blRouter = createTRPCRouter({
             changedAt: new Date(),
           },
         });
+        await writeGroupRateChangeLog({
+          connectionId: input.connectionId,
+          groupId: input.groupId,
+          groupName: group.name ?? oldGroup.name,
+          oldRate: oldGroup.rate_multiplier ?? null,
+          newRate: rateMultiplier,
+          action: "manual_sync",
+          sourceDetail: formatGroupRateChangeSource({
+            sourceSiteName: input.sourceSiteName,
+            sourceGroupId: input.sourceGroupId,
+            sourceGroupName: input.sourceGroupName,
+          }),
+        });
         await safeLogSync(input.connectionId, "bl_sync_group_rate", `group:${input.groupId}`, detail, "success");
         return { ok: true, group };
       } catch (error) {
@@ -478,6 +554,19 @@ export const blRouter = createTRPCRouter({
               changedAt: new Date(),
             },
           });
+          await writeGroupRateChangeLog({
+            connectionId: input.connectionId,
+            groupId: target.id,
+            groupName: group.name ?? target.name,
+            oldRate: target.rate_multiplier ?? null,
+            newRate: parsed,
+            action: "auto_sync",
+            sourceDetail: formatGroupRateChangeSource({
+              sourceSiteName: change.site_name,
+              sourceGroupId: change.group_id,
+              sourceGroupName: change.group_name ?? "",
+            }),
+          });
           await safeLogSync(input.connectionId, "bl_sync_group_rate", `group:${target.id}`, detail, "success");
           results.push({ sourceGroupId: change.group_id, targetGroupId: target.id, ok: true, message: "已同步" });
         } catch (error) {
@@ -494,6 +583,48 @@ export const blRouter = createTRPCRouter({
         failed: results.filter((result) => !result.ok).length,
         results,
       };
+    }),
+  listIgnoredRates: protectedProcedure
+    .input(z.object({ connectionId: z.number().int().positive(), siteId: z.number().int().positive().optional() }))
+    .query(async ({ ctx, input }) => {
+      if (ctx.mockMode) {
+        let rates = mock.bl.listIgnoredRates;
+        if (input.siteId) rates = rates.filter((r: { siteId: number }) => r.siteId === input.siteId);
+        return rates;
+      }
+      const where: { connectionId: number; siteId?: number } = { connectionId: input.connectionId };
+      if (input.siteId !== undefined) where.siteId = input.siteId;
+      const rows = await db.blIgnoredRate.findMany({ where, orderBy: { createdAt: "desc" } });
+      return rows;
+    }),
+  toggleIgnoredRate: protectedProcedure
+    .input(z.object({
+      connectionId: z.number().int().positive(),
+      siteId: z.number().int().positive(),
+      groupId: z.string().trim().min(1),
+      name: z.string().optional(),
+    }))
+    .mutation(async ({ input }) => {
+      const existing = await db.blIgnoredRate.findUnique({
+        where: { connectionId_siteId_groupId: {
+          connectionId: input.connectionId,
+          siteId: input.siteId,
+          groupId: input.groupId,
+        } },
+      });
+      if (existing) {
+        await db.blIgnoredRate.delete({ where: { id: existing.id } });
+        return { ignored: false };
+      }
+      await db.blIgnoredRate.create({
+        data: {
+          connectionId: input.connectionId,
+          siteId: input.siteId,
+          groupId: input.groupId,
+          name: input.name ?? "",
+        },
+      });
+      return { ignored: true };
     }),
 });
 

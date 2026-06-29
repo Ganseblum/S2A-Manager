@@ -3,6 +3,7 @@ import { createTRPCRouter, protectedProcedure } from "@/server/api/trpc";
 import { db } from "@/server/db";
 import { encrypt, decrypt } from "@/server/crypto";
 import { Sub2ApiAdminClient } from "@/server/clients/sub2api-admin";
+import * as mock from "@/server/mock-data";
 
 function normalizeUrl(value: string) {
   return value.trim().replace(/\/+$/, "");
@@ -19,7 +20,8 @@ function maskConnection<T extends { adminApiKey: string }>(connection: T) {
 }
 
 export const connectionsRouter = createTRPCRouter({
-  list: protectedProcedure.query(async () => {
+  list: protectedProcedure.query(async ({ ctx }) => {
+    if (ctx.mockMode) return mock.connections.list as { id: number; name: string; baseUrl: string; adminApiKey: string; enabled: boolean; syncMode: string; lastCheckAt: Date | null; createdAt: Date; updatedAt: Date }[];
     const rows = await db.connection.findMany({ orderBy: { createdAt: "asc" } });
     return rows.map(maskConnection);
   }),

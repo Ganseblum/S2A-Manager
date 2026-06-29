@@ -532,14 +532,14 @@ export function UpstreamMonitorPanel({ connectionId }: { connectionId: number })
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>账号</TableHead>
+            <TableHead stickyLeft={0}>账号</TableHead>
             <TableHead>类型</TableHead>
             <TableHead>调度</TableHead>
             <TableHead>规则</TableHead>
             <TableHead className="min-w-[460px]">Uptime</TableHead>
             <TableHead>最近检测</TableHead>
             <TableHead>暂停</TableHead>
-            <TableHead className="w-56">操作</TableHead>
+            <TableHead className="w-56" stickyRight={0}>操作</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -556,7 +556,7 @@ export function UpstreamMonitorPanel({ connectionId }: { connectionId: number })
               const rowPending = togglePending || runPending || resumePending || deletePending;
               return (
                 <TableRow key={`${row.accountId}-${row.missing ? "missing" : "account"}`}>
-                  <TableCell>
+                  <TableCell stickyLeft={0}>
                     <div className="font-medium">{row.accountName}</div>
                     <div className="font-mono text-xs text-muted-foreground">#{row.accountId}{row.missing ? " / 已从源站移除" : ""}</div>
                   </TableCell>
@@ -598,7 +598,7 @@ export function UpstreamMonitorPanel({ connectionId }: { connectionId: number })
                       <div className="text-xs text-muted-foreground">下次 {formatRelative(rule?.nextCheckAt)}</div>
                     )}
                   </TableCell>
-                  <TableCell>
+                  <TableCell stickyRight={0}>
                     <div className="flex flex-wrap gap-1">
                       <Button variant="ghost" size="icon" className="h-8 w-8" title={rule ? "编辑规则" : "配置规则"} onClick={() => openEditor(row)} disabled={rowPending}>
                         <Settings2 className="h-4 w-4" />

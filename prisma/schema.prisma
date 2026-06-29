@@ -35,6 +35,8 @@ model Connection {
   upstreamMonitorRules UpstreamMonitorRule[]
   upstreamMonitorResults UpstreamMonitorResult[]
   upstreamMonitorRateExclusions UpstreamMonitorRateExclusion[]
+  blIgnoredRates BlIgnoredRate[]
+  groupRateChangeLogs GroupRateChangeLog[]
   blCollectionSites BlCollectionSite[]
   blCollectionRuns BlCollectionRun[]
   blCollectedGroupRates BlCollectedGroupRate[]
@@ -333,4 +335,35 @@ model UpstreamMonitorRateExclusion {
   @@index([connectionId, accountId, active])
   @@index([connectionId, sourceSiteId, sourceGroupId, active])
   @@map("upstream_monitor_rate_exclusions")
+}
+
+model BlIgnoredRate {
+  id           Int      @id @default(autoincrement())
+  connectionId Int      @map("connection_id")
+  siteId       Int      @map("site_id")
+  groupId      String   @map("group_id")
+  name         String   @default("")
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  connection   Connection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+
+  @@unique([connectionId, siteId, groupId])
+  @@index([connectionId])
+  @@map("bl_ignored_rates")
+}
+
+model GroupRateChangeLog {
+  id           Int      @id @default(autoincrement())
+  connectionId Int      @map("connection_id")
+  groupId      Int      @map("group_id")
+  groupName    String   @map("group_name")
+  oldRate      Float?   @map("old_rate")
+  newRate      Float    @map("new_rate")
+  action       String
+  sourceDetail String?  @map("source_detail")
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  connection   Connection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+
+  @@index([connectionId, groupId, createdAt])
+  @@index([connectionId, createdAt])
+  @@map("group_rate_change_logs")
 }

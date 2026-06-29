@@ -7,14 +7,18 @@ import {
   normalizeUpstreamMonitorTimeoutSeconds,
   normalizeWorkerIntervalSeconds,
 } from "@/server/worker-settings";
+import * as mock from "@/server/mock-data";
 
 export const appSettingsRouter = createTRPCRouter({
-  get: protectedProcedure.query(async () => ({
-    workerIntervalSeconds: normalizeWorkerIntervalSeconds(await getSetting("worker_interval_seconds")),
-    accountBalanceAlertIntervalSeconds: normalizeAccountBalanceAlertIntervalSeconds(await getSetting("account_balance_alert_interval_seconds")),
-    upstreamMonitorTimeoutSeconds: normalizeUpstreamMonitorTimeoutSeconds(await getSetting("upstream_monitor_timeout_seconds")),
-    upstreamMonitorConcurrency: normalizeUpstreamMonitorConcurrency(await getSetting("upstream_monitor_concurrency")),
-  })),
+  get: protectedProcedure.query(async ({ ctx }) => {
+    if (ctx.mockMode) return mock.appSettings.get;
+    return {
+      workerIntervalSeconds: normalizeWorkerIntervalSeconds(await getSetting("worker_interval_seconds")),
+      accountBalanceAlertIntervalSeconds: normalizeAccountBalanceAlertIntervalSeconds(await getSetting("account_balance_alert_interval_seconds")),
+      upstreamMonitorTimeoutSeconds: normalizeUpstreamMonitorTimeoutSeconds(await getSetting("upstream_monitor_timeout_seconds")),
+      upstreamMonitorConcurrency: normalizeUpstreamMonitorConcurrency(await getSetting("upstream_monitor_concurrency")),
+    };
+  }),
   saveWorker: protectedProcedure
     .input(
       z.object({

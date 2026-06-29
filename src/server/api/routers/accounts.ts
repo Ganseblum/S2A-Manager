@@ -7,6 +7,7 @@ import { Sub2ApiAdminClient } from "@/server/clients/sub2api-admin";
 import { normalizeRateMultiplier } from "@/server/rates";
 import { fetchAccountBalances } from "@/server/account-balance";
 import { getAccountId } from "@/server/account-utils";
+import * as mock from "@/server/mock-data";
 import { applyAccountPriorityRule, readAccountPriorityRule, saveAccountPriorityRule } from "@/server/account-priority-rule";
 import {
   checkAccountBalanceAlerts,
@@ -118,7 +119,8 @@ function buildAccountPayload(input: z.infer<typeof accountCreateInput> | z.infer
 export const accountsRouter = createTRPCRouter({
   list: protectedProcedure
     .input(z.object({ connectionId: z.number().int().positive() }))
-    .query(async ({ input }) => {
+    .query(async ({ ctx, input }) => {
+      if (ctx.mockMode) return mock.accounts.list;
       const client = await getClient(input.connectionId);
       return client.listAccounts();
     }),
@@ -128,7 +130,8 @@ export const accountsRouter = createTRPCRouter({
       accountIds: z.array(z.number().int().positive()).max(200),
       force: z.boolean().default(false),
     }))
-    .query(async ({ input }) => {
+    .query(async ({ ctx, input }) => {
+      if (ctx.mockMode) return mock.accounts.balances;
       const client = await getClient(input.connectionId);
       return fetchAccountBalances({
         client,

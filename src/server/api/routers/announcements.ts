@@ -9,6 +9,7 @@ import {
   defaultRateAnnouncementTitleTemplate,
   renderAnnouncementTemplate,
 } from "@/server/announcement-rules";
+import * as mock from "@/server/mock-data";
 
 const targetGroupIdsInput = z
   .array(z.number().int().positive())
@@ -93,7 +94,8 @@ async function safeLogSync(connectionId: number, action: string, target: string,
 export const announcementsRouter = createTRPCRouter({
   rules: protectedProcedure
     .input(z.object({ connectionId: z.number().int().positive() }))
-    .query(async ({ input }) => {
+    .query(async ({ ctx, input }) => {
+      if (ctx.mockMode) return mock.announcements.rules;
       return db.announcementRule.findMany({
         where: { connectionId: input.connectionId },
         orderBy: [{ enabled: "desc" }, { id: "asc" }],
@@ -194,7 +196,8 @@ export const announcementsRouter = createTRPCRouter({
     }),
   list: protectedProcedure
     .input(z.object({ connectionId: z.number().int().positive() }))
-    .query(async ({ input }) => {
+    .query(async ({ ctx, input }) => {
+      if (ctx.mockMode) return mock.announcements.list;
       const client = await getClient(input.connectionId);
       return client.listAnnouncements();
     }),

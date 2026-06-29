@@ -51,6 +51,16 @@ function forwardedOrigin(request: NextRequest) {
 export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
   if (pathname === "/login" || pathname === "/setup") return NextResponse.next();
+
+  // Mock 模式 - 跳过认证检查
+  const mockCookie = request.cookies.get("mock_mode")?.value;
+  if (mockCookie === "1" || (mockCookie !== "0" && process.env.MOCK_MODE === "true")) {
+    const response = NextResponse.next();
+    response.headers.set("Cache-Control", "no-store");
+    response.headers.set("Pragma", "no-cache");
+    return response;
+  }
+
   if (await hasValidSession(request)) {
     const response = NextResponse.next();
     response.headers.set("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");

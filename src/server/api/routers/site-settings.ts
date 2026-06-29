@@ -4,6 +4,7 @@ import { db } from "@/server/db";
 import { writeSyncLog } from "@/server/sync-logs";
 import { decrypt } from "@/server/crypto";
 import { Sub2ApiAdminClient } from "@/server/clients/sub2api-admin";
+import * as mock from "@/server/mock-data";
 
 async function getClient(connectionId: number) {
   const conn = await db.connection.findUniqueOrThrow({ where: { id: connectionId } });
@@ -231,7 +232,8 @@ function normalizeSettingsPayload(settings: Record<string, unknown>) {
 export const siteSettingsRouter = createTRPCRouter({
   get: protectedProcedure
     .input(z.object({ connectionId: z.number().int().positive() }))
-    .query(async ({ input }) => {
+    .query(async ({ ctx, input }) => {
+      if (ctx.mockMode) return mock.siteSettings.get;
       const client = await getClient(input.connectionId);
       return client.getSettings();
     }),
